@@ -31,14 +31,5 @@
   ],
   "intentional_fixes": [
     "Removed unmatched closing brace at original stylesheet line 172."
-  ],
-  "feature_updates": [
-    "Added official Bungie public-manifest icons for subclass abilities, exotic armor, exotic weapons, real weapons, and real armor.",
-    "Added lazy exact-name icon resolution with hash/icon preference, request deduplication, viewport loading, and localStorage caching.",
-    "Replaced the fixed vault bucket whitelist with live DestinyInventoryBucketDefinition grouping so all returned inventory buckets render.",
-    "Added ProfileCurrencies presentation for Glimmer, Bright Dust, and other account currencies.",
-    "Added stack quantity, lock state, account-inventory classification, equipment classification, and non-transferable item handling.",
-    "Added ItemReusablePlugs component 310 and manifest plug-set expansion for DIM-style vertical perk columns.",
-    "Reworked the item detail overview into a DIM-inspired summary, perk matrix, inspector, description, stats, utility sockets, and action bar."
   ]
 }

@@ -5,38 +5,6 @@
    ========================================================================= */
 function el(tag, cls, html){ const e=document.createElement(tag); if(cls) e.className=cls; if(html!==undefined) e.innerHTML=html; return e; }
 
-
-function appendLiveSubclassIconSummary(parent){
-  const live = state.liveSubclass;
-  if(!live) return;
-  const entries = [
-    {label:"Subclass", value:{name:live.name, hash:live.itemHash}, type:"ability"},
-    {label:"Super", value:live.super, type:"super"},
-    {label:"Class ability", value:live.classAbility, type:"classAbility"},
-    {label:"Grenade", value:live.grenade, type:"grenade"},
-    {label:"Melee", value:live.melee, type:"melee"},
-    ...(live.aspects||[]).map(v=>({label:"Aspect",value:v,type:"aspect"})),
-    ...(live.fragments||[]).map(v=>({label:"Fragment",value:v,type:"fragment"})),
-  ].filter(entry=>entry.value && (entry.value.name || entry.value.hash || entry.value.icon));
-  if(!entries.length) return;
-
-  const wrap = el('div','liveManifestSummary');
-  wrap.appendChild(el('div','liveManifestSummaryTitle','Live equipped subclass — official Bungie manifest icons'));
-  const grid = el('div','liveManifestIconGrid');
-  entries.forEach(entry=>{
-    const card = el('div','liveManifestIconCard');
-    const text = el('div','liveManifestIconText');
-    text.appendChild(el('span','liveManifestIconLabel',entry.label));
-    const name = typeof entry.value === 'string' ? entry.value : entry.value.name;
-    text.appendChild(el('span','liveManifestIconName',name || 'Unknown'));
-    card.appendChild(text);
-    grid.appendChild(card);
-    attachLiveIcon(card, entry.value, entry.type, {size:40});
-  });
-  wrap.appendChild(grid);
-  parent.appendChild(wrap);
-}
-
 // Per-panel collapse state — persists across re-renders since renderBuilder()
 // rebuilds the DOM from scratch every call. Clicking any panel's header
 // toggles just that one panel, letting people focus on a single section.
@@ -125,7 +93,6 @@ function renderBuilder(){
   });
   p1.appendChild(document.createElement('div')).style.height="10px";
   p1.appendChild(tabs);
-  appendLiveSubclassIconSummary(p1);
 
   const sc = SUBCLASSES[state.cls][state.element];
 
@@ -137,7 +104,6 @@ function renderBuilder(){
     chip.style.setProperty('--accent', ELEMENT_COLOR[state.element]);
     chip.onclick=()=>{ state.super = s.name; render(); };
     superGrid.appendChild(chip);
-    attachLiveIcon(chip, s, 'super', {size:36});
   });
   p1.appendChild(superGrid);
   p1.appendChild(document.createElement('div')).style.height="6px";
@@ -153,7 +119,6 @@ function renderBuilder(){
       render();
     };
     aspectGrid.appendChild(chip);
-    attachLiveIcon(chip, a, 'aspect', {size:36});
   });
   p1.appendChild(el('div','', '<div style="font-size:11px;color:var(--muted);margin:8px 0 2px;text-transform:uppercase;letter-spacing:.06em;">Aspects (max 2)</div>'));
   p1.appendChild(aspectGrid);
@@ -205,7 +170,6 @@ function renderBuilder(){
       const note = el('div','empty-note', `${g.name}: ${g.effects.map(e=>BUCKETS.find(b=>b.id===e.bucket).name+' +'+e.value+'%'+(e.cond?` (if ${e.cond})`:'')+(e.note?' — '+e.note:'')).join(', ')}`);
       note.style.fontStyle='normal'; note.style.marginBottom='4px';
       p1.appendChild(note);
-      attachLiveIcon(note, state.liveSubclass?.grenade || g, 'grenade', {size:36});
     }
   }
   if(state.melee){
@@ -214,15 +178,7 @@ function renderBuilder(){
       const note = el('div','empty-note', `${m.name}: ${m.effects.map(e=>BUCKETS.find(b=>b.id===e.bucket).name+' +'+e.value+'%'+(e.cond?` (if ${e.cond})`:'')+(e.note?' — '+e.note:'')).join(', ')}`);
       note.style.fontStyle='normal'; note.style.marginBottom='8px';
       p1.appendChild(note);
-      attachLiveIcon(note, state.liveSubclass?.melee || m, 'melee', {size:36});
     }
-  }
-  if(state.classAbility){
-    const liveClass = state.liveSubclass?.classAbility || {name:state.classAbility};
-    const note = el('div','empty-note', `<b style="font-style:normal;color:var(--gold);">Class ability:</b> ${state.classAbility}`);
-    note.style.fontStyle='normal'; note.style.marginBottom='8px';
-    p1.appendChild(note);
-    attachLiveIcon(note, liveClass, 'classAbility', {size:36});
   }
 
   // Fragment slot total depends on which aspects are equipped (each aspect
@@ -246,7 +202,6 @@ function renderBuilder(){
       render();
     };
     fragGrid.appendChild(chip);
-    attachLiveIcon(chip, f, 'fragment', {size:34});
   });
   p1.appendChild(el('div','', `<div style="font-size:11px;color:var(--muted);margin:10px 0 2px;text-transform:uppercase;letter-spacing:.06em;">Fragments (${maxFragments} slot${maxFragments===1?'':'s'} — from equipped aspects)</div>`));
   p1.appendChild(fragGrid);
@@ -301,13 +256,6 @@ function renderBuilder(){
     row.style.marginBottom='8px';
     if(isLockedOut) row.style.opacity='0.4';
     row.appendChild(el('label','',pieceLabels[piece]));
-    const selectedForPiece = state.exoticArmor && activeArmorPiece===piece ? allArmor.find(a=>a.name===state.exoticArmor) : null;
-    if(selectedForPiece){
-      const iconSlot = el('span','selectIconSlot');
-      row.appendChild(iconSlot);
-      const source = state.liveExoticArmor && liveNameMatches(state.liveExoticArmor.name, selectedForPiece.name) ? state.liveExoticArmor : selectedForPiece;
-      attachLiveIcon(iconSlot, source, 'armor', {size:38});
-    }
     const sel = el('select');
     sel.disabled = isLockedOut;
     const noneOpt = document.createElement('option'); noneOpt.value=""; noneOpt.textContent= isLockedOut ? "— locked (exotic equipped elsewhere) —" : "— none —"; sel.appendChild(noneOpt);
@@ -322,12 +270,6 @@ function renderBuilder(){
   });
 
   const chosenArmor = allArmor.find(a=>a.name===state.exoticArmor);
-  if(state.liveExoticArmor && !chosenArmor){
-    const liveCard = el('div','liveManifestStandaloneCard');
-    liveCard.appendChild(el('div','', `<b style="color:#ceae33;">${state.liveExoticArmor.name}</b><br><span style="color:var(--muted);font-size:11px;">Equipped exotic armor from the live manifest; no curated synergy entry exists yet.</span>`));
-    p2.appendChild(liveCard);
-    attachLiveIcon(liveCard, state.liveExoticArmor, 'armor', {size:48});
-  }
   const classItemPool = EXOTIC_CLASS_ITEM_PERKS[state.cls];
   const isClassItemChosen = chosenArmor && classItemPool && chosenArmor.name === classItemPool.name;
 
@@ -336,13 +278,12 @@ function renderBuilder(){
     const note = el('div','empty-note', `<span style="color:${tagColor};">[${chosenArmor.synergy.join('/')}]</span> ${chosenArmor.effects.map(e=>BUCKETS.find(b=>b.id===e.bucket).name+' +'+e.value+'%'+(e.cond?` (if ${e.cond})`:'')+(e.note?' — '+e.note:'')).join(', ')}`);
     note.style.fontStyle='normal'; note.style.marginTop='6px';
     p2.appendChild(note);
-    attachLiveIcon(note, state.liveExoticArmor || chosenArmor, 'armor', {size:42});
+    attachLiveIcon(note, chosenArmor.name, 'armor');
   }
 
   if(isClassItemChosen){
     const perkNote = el('div','', `<div style="font-size:11px;color:var(--muted);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.06em;">${classItemPool.name} — pick 2 perks (one per column)</div>`);
     p2.appendChild(perkNote);
-    attachLiveIcon(perkNote, state.liveExoticArmor || chosenArmor, 'armor', {size:42});
 
     const col1Row = el('div','slotrow');
     col1Row.style.marginBottom='6px';
@@ -459,13 +400,6 @@ function renderBuilder(){
     wrap.appendChild(filterRow);
 
     const row = el('div','slotrow');
-    const selectedWeaponForSlot = state.activeExoticWeapon ? EXOTIC_WEAPONS.find(w=>w.name===state.activeExoticWeapon && w.slot===slot) : null;
-    if(selectedWeaponForSlot){
-      const iconSlot = el('span','selectIconSlot');
-      row.appendChild(iconSlot);
-      const source = state.liveExoticWeapon && liveNameMatches(state.liveExoticWeapon.name, selectedWeaponForSlot.name) ? state.liveExoticWeapon : selectedWeaponForSlot;
-      attachLiveIcon(iconSlot, source, 'weapon', {size:40});
-    }
     const sel = el('select');
     sel.disabled = isLockedOut;
     const noneOpt = document.createElement('option'); noneOpt.value=""; noneOpt.textContent= isLockedOut ? "— locked (exotic equipped elsewhere) —" : "— none —"; sel.appendChild(noneOpt);
@@ -480,12 +414,6 @@ function renderBuilder(){
     wrap.appendChild(row);
     p3.appendChild(wrap);
   });
-  if(state.liveExoticWeapon && !state.activeExoticWeapon){
-    const liveCard = el('div','liveManifestStandaloneCard');
-    liveCard.appendChild(el('div','', `<b style="color:#ceae33;">${state.liveExoticWeapon.name}</b><br><span style="color:var(--muted);font-size:11px;">Equipped exotic weapon from the live manifest; no curated synergy entry exists yet.</span>`));
-    p3.appendChild(liveCard);
-    attachLiveIcon(liveCard, state.liveExoticWeapon, 'weapon', {size:48});
-  }
   if(state.activeExoticWeapon){
     const ew = EXOTIC_WEAPONS.find(w=>w.name===state.activeExoticWeapon);
     if(ew){
@@ -494,7 +422,7 @@ function renderBuilder(){
         const perkNote = el('div','empty-note', `<b style="color:var(--gold);font-style:normal;">${intrinsic.perk}</b> — ${intrinsic.desc}`);
         perkNote.style.marginTop='8px';
         p3.appendChild(perkNote);
-        attachLiveIcon(perkNote, state.liveExoticWeapon || ew, 'weapon', {size:44});
+        attachLiveIcon(perkNote, ew.name, 'weapon');
       }
       const synergyNote = el('div','empty-note', `Build synergy: ${ew.effects.map(e=>BUCKETS.find(b=>b.id===e.bucket).name+' +'+e.value+'%'+(e.cond?` (if ${e.cond})`:'')+(e.note?' — '+e.note:'')).join(', ')}`);
       synergyNote.style.fontStyle='normal'; synergyNote.style.marginTop='6px';
@@ -522,7 +450,7 @@ function renderBuilder(){
       const occNote = el('div','empty-note', `Occupied by exotic <b style="font-style:normal;color:#ceae33;">${state.activeExoticWeapon}</b> (${ew?ew.element:''}) — it inherits this slot's mod &amp; masterwork below.`);
       occNote.style.fontStyle='normal'; occNote.style.marginBottom='6px';
       lockedWrap.appendChild(occNote);
-      if(ew) attachLiveIcon(occNote, state.liveExoticWeapon || ew, 'weapon', {size:42});
+      if(ew) attachLiveIcon(occNote, ew.name, 'weapon');
       if(state.legendary[slot]) state.legendary[slot] = null;
       // Weapon Mod (inherited slot context)
       const modRow = el('div','slotrow');
@@ -594,7 +522,7 @@ function renderBuilder(){
 
       const item = state.legendaryRealItem[slot];
       if(item){
-        attachLiveIcon(wrap, item, 'weapon', {size:46});
+        attachLiveIcon(wrap, item.name, 'weapon');
         const detailNote = el('div','empty-note',
           item.matchedPerks === undefined ? 'Resolving real perks...' :
           (item.matchedPerks.length
@@ -799,7 +727,7 @@ function renderBuilder(){
 
       const realItem = state.armorRealItem[slotName];
       if(realItem){
-        attachLiveIcon(wrap, realItem, 'armor', {size:46});
+        attachLiveIcon(wrap, realItem.name, 'armor');
         const statLine = Object.values(realItem.stats||{}).map(s=>{
           const n = STAT_HASH_TO_NAME[s.statHash]; return n ? `${n} ${s.value}` : null;
         }).filter(Boolean).join(' \u00b7 ');
@@ -1000,7 +928,6 @@ function renderBuilder(){
         const liveNote = el('div','empty-note', `<b style="color:var(--gold);font-style:normal;">${state.artifact}</b> \u2014 ${state.artifactPerks.length} active perk${state.artifactPerks.length===1?'':'s'} synced from your real account.`);
         liveNote.style.margin = '6px 0';
         p6.appendChild(liveNote);
-        if(state.liveArtifact?.itemHash || state.liveArtifact?.icon) attachLiveIcon(liveNote, state.liveArtifact, 'perk', {size:40});
         const liveGrid = el('div','chipgrid');
         state.artifactPerks.forEach(name=>{
           const perk = ARTIFACT_PERK_LIBRARY[name];
@@ -1117,19 +1044,6 @@ function renderBuilder(){
     if(!getStoredAuth()){
       p7.appendChild(el('div','empty-note', 'Sign in with Bungie (hamburger menu) to sync your real equipped set bonuses here.'));
     } else {
-      const livePieces = Object.entries(state.armorRealItem||{}).filter(([,item])=>item);
-      if(livePieces.length){
-        const liveGrid = el('div','liveManifestIconGrid');
-        livePieces.forEach(([piece,item])=>{
-          const card = el('div','liveManifestIconCard');
-          const text = el('div','liveManifestIconText');
-          text.appendChild(el('span','liveManifestIconLabel',piece));
-          text.appendChild(el('span','liveManifestIconName',item.name));
-          card.appendChild(text); liveGrid.appendChild(card);
-          attachLiveIcon(card, item, 'armor', {size:40});
-        });
-        p7.appendChild(liveGrid);
-      }
       const hasAny = Object.values(state.armorSetByPiece).some(v=>v);
       if(!hasAny) p7.appendChild(el('div','empty-note', 'Use "Sync My Real Build" at the top to pull your account\u2019s real equipped set bonuses.'));
     }

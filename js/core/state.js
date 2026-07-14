@@ -11,12 +11,6 @@ const state = {
   fragments: [], // names, max 3 (represents fragment slot count roughly)
   grenade: null, // name
   melee: null, // name
-  classAbility: null, // exact live class ability name when synced
-  liveSubclass: null, // manifest-driven equipped subclass details
-  liveExoticWeapon: null, // exact equipped exotic even when absent from curated tables
-  liveExoticArmor: null, // exact equipped exotic even when absent from curated tables
-  liveArmorSetByPiece: {Helmet:null,Arms:null,Chest:null,Legs:null,ClassItem:null},
-  liveArtifact: null, // exact active artifact/perks from Bungie
   exoticArmor: null,
   exoticTuning: null,
   classItemPerks: {col1:null, col2:null}, // Prismatic-only exotic class item perk picks
@@ -67,9 +61,9 @@ state.super = defaultSuperFor(state.cls, state.element);
 
 function resetState(){
   state.cls="Titan"; state.element="Solar"; state.aspects=[]; state.fragments=[];
-  state.grenade=null; state.melee=null; state.classAbility=null; state.liveSubclass=null;
+  state.grenade=null; state.melee=null;
   state.super = defaultSuperFor(state.cls, state.element);
-  state.exoticArmor=null; state.exoticTuning=null; state.activeExoticWeapon=null; state.liveExoticArmor=null; state.liveExoticWeapon=null; state.armorFilter="synergy";
+  state.exoticArmor=null; state.exoticTuning=null; state.activeExoticWeapon=null; state.armorFilter="synergy";
   state.exoticWeaponFilter={Kinetic:"all",Energy:"all",Power:"all"};
   state.classItemPerks={col1:null,col2:null};
   state.legendary={Kinetic:null,Energy:null,Power:null};
@@ -79,7 +73,6 @@ function resetState(){
   state.tuning={Helmet:null,Arms:null,Chest:null,Legs:null,ClassItem:null};
   state.artifact=null; state.artifactPerks=[];
   state.armorSetByPiece={Helmet:null,Arms:null,Chest:null,Legs:null,ClassItem:null};
-  state.liveArmorSetByPiece={Helmet:null,Arms:null,Chest:null,Legs:null,ClassItem:null}; state.liveArtifact=null;
   state.armorTier={Helmet:5,Arms:5,Chest:5,Legs:5,ClassItem:5};
   state.armorMasterwork={Helmet:{level:0,stats:[]},Arms:{level:0,stats:[]},Chest:{level:0,stats:[]},Legs:{level:0,stats:[]},ClassItem:{level:0,stats:[]}};
   state.armorMode={Helmet:"generic",Arms:"generic",Chest:"generic",Legs:"generic",ClassItem:"generic"};

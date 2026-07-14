@@ -14,7 +14,7 @@
    CONFIG BLOCK  (Phase 1 — single source of truth for tunables/keys)
    ========================================================================= */
 const D2S_CONFIG = {
-  MANIFEST_CACHE_VERSION: "v4-dim-complete-inventory",
+  MANIFEST_CACHE_VERSION: "v2",
   MANIFEST_CACHE_KEY: "d2synergy_manifest_cache",
   RATE_LIMIT_MS: 42,   // minimum spacing between outbound Bungie requests — Bungie's documented limit is ~25 req/sec (40ms); this was previously 90ms (~11/sec), needlessly slowing down anything that fetches many items at once (like the vault)
   MAX_RETRIES: 4,      // retries on 429 / 5xx / network error
@@ -185,168 +185,38 @@ function persistIconCache(){
   }, 600);
 }
 
-// Official public Bungie icon support. Live objects already carry an exact
-// manifest hash/icon, while hand-curated builder entries are resolved through
-// Destiny2.SearchDestinyEntities. Name searches require an exact normalized
-// match: showing no icon is safer than attaching the wrong first search result.
-const BUNGIE_ICON_HOST = "https://www.bungie.net";
-const __d2sIconInFlight = new Map();
-let __d2sIconObserver = null;
-
-function normalizeIconLookupName(value){
-  return String(value || "")
-    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[’'`]/g, "").replace(/[–—]/g, "-")
-    .replace(/\s*\((arc|solar|void|stasis|strand|kinetic|prismatic)\)\s*$/i, "")
-    .replace(/[^a-zA-Z0-9]+/g, " ").trim().toLowerCase();
-}
-
-function publicBungieIconUrl(value){
-  if(!value) return null;
-  if(/^https?:\/\//i.test(value)) return value;
-  return BUNGIE_ICON_HOST + (String(value).startsWith("/") ? value : "/" + value);
-}
-
-function iconTypeScore(def, requestedType){
-  const t = normalizeIconLookupName(`${def?.itemTypeDisplayName||""} ${def?.itemTypeAndTierDisplayName||""} ${def?.typeName||""} ${def?.plug?.plugCategoryIdentifier||""} ${def?.plugCategoryIdentifier||""}`);
-  const numericType = Number(def?.itemType);
-  const hasTypeMetadata = !!t || Number.isFinite(numericType);
-  if(!hasTypeMetadata) return 0;
-  const type = String(requestedType || "").toLowerCase();
-  if(type === "weapon") return numericType === 3 || /weapon|rifle|hand cannon|sidearm|bow|glaive|sword|launcher|shotgun|sniper|fusion|machine gun|trace rifle/.test(t) ? 30 : -30;
-  if(type === "armor") return numericType === 2 || /armor|helmet|gauntlet|chest|leg armor|class item|cloak|mark|bond/.test(t) ? 30 : -30;
-  if(type === "super") return /super ability|super/.test(t) ? 30 : -20;
-  if(type === "grenade") return /grenade/.test(t) ? 30 : -20;
-  if(type === "melee") return /melee/.test(t) ? 30 : -20;
-  if(type === "classability" || type === "class ability") return /class ability/.test(t) ? 30 : -20;
-  if(type === "aspect") return /aspect/.test(t) ? 30 : -20;
-  if(type === "fragment") return /fragment|facet|ember|echo|spark|whisper|thread/.test(t) ? 30 : -15;
-  if(type === "ability") return /ability|aspect|fragment|facet|ember|echo|spark|whisper|thread|grenade|melee|super/.test(t) ? 20 : 0;
-  if(type === "mod") return /mod/.test(t) ? 20 : 0;
-  if(type === "perk") return /perk|trait|intrinsic|artifact|mod/.test(t) ? 15 : 0;
-  return 0;
-}
-
-function iconSourceParts(source){
-  if(typeof source === "string") return {name:source, hash:null, icon:null};
-  if(!source || typeof source !== "object") return {name:"", hash:null, icon:null};
-  return {
-    name: source.name || source.displayProperties?.name || "",
-    hash: source.hash || source.itemHash || null,
-    icon: source.icon || source.displayProperties?.icon || null,
-  };
-}
-
-async function resolvePublicBungieIcon(source, itemType){
-  const parts = iconSourceParts(source);
-  const direct = publicBungieIconUrl(parts.icon);
-  if(direct) return direct;
-
-  if(parts.hash && typeof getItemDefinition === "function"){
-    try {
-      const def = await getItemDefinition(parts.hash);
-      const byHash = publicBungieIconUrl(def?.icon || def?.displayProperties?.icon);
-      if(byHash) return byHash;
-    } catch(e){}
+// Fetches a best-guess icon for an item by NAME (not hash) via Bungie's
+// Armory fuzzy-search endpoint, since our data is keyed by name, not by
+// Bungie's internal item hash. Attaches the icon into the given container
+// once resolved. Best-effort: if the name doesn't match cleanly (common for
+// perks/mods, which the search endpoint isn't great at disambiguating),
+// this silently does nothing rather than showing a wrong icon.
+async function attachLiveIcon(container, itemName, itemType){
+  if(iconCache[itemName] === null) return; // previously failed, don't retry
+  if(iconCache[itemName]){
+    const img = document.createElement('img');
+    img.src = iconCache[itemName]; img.style.width='32px'; img.style.height='32px'; img.style.borderRadius='4px'; img.style.marginRight='8px'; img.style.verticalAlign='middle';
+    container.insertBefore(img, container.firstChild);
+    return;
   }
-
-  const lookupName = String(parts.name || "").trim();
-  const normalizedName = normalizeIconLookupName(lookupName);
-  if(!normalizedName) return null;
-  const cacheKey = `${String(itemType||"item").toLowerCase()}|${normalizedName}`;
-  if(Object.prototype.hasOwnProperty.call(iconCache, cacheKey)) return iconCache[cacheKey];
-  if(__d2sIconInFlight.has(cacheKey)) return __d2sIconInFlight.get(cacheKey);
-
-  const request = (async()=>{
-    try {
-      const searchTerm = lookupName.replace(/\s*\((arc|solar|void|stasis|strand|kinetic|prismatic)\)\s*$/i, "").trim();
-      const res = await rateLimitedFetch(`${BUNGIE_BASE}/Destiny2/Armory/Search/DestinyInventoryItemDefinition/${encodeURIComponent(searchTerm)}/`, {
-        headers: { "X-API-Key": BUNGIE_API_KEY }
-      });
-      if(!res.ok) throw new Error("http "+res.status);
-      const json = await res.json();
-      const results = json?.Response?.results?.results || [];
-      const ranked = results
-        .filter(r=>r?.displayProperties?.icon)
-        .map(r=>{
-          const candidateName = normalizeIconLookupName(r.displayProperties?.name);
-          let score = candidateName === normalizedName ? 100 : -100;
-          score += iconTypeScore(r, itemType);
-          if(r.redacted) score -= 50;
-          return {r, score};
-        })
-        .sort((a,b)=>b.score-a.score);
-      const best = ranked[0];
-      const iconUrl = best && best.score >= 80 ? publicBungieIconUrl(best.r.displayProperties.icon) : null;
-      iconCache[cacheKey] = iconUrl;
-      persistIconCache();
-      return iconUrl;
-    } catch(e){
-      iconCache[cacheKey] = null;
-      persistIconCache();
-      return null;
-    } finally {
-      __d2sIconInFlight.delete(cacheKey);
-    }
-  })();
-  __d2sIconInFlight.set(cacheKey, request);
-  return request;
-}
-
-function ensureIconObserver(){
-  if(__d2sIconObserver || typeof IntersectionObserver === "undefined") return __d2sIconObserver;
-  __d2sIconObserver = new IntersectionObserver(entries=>{
-    entries.forEach(entry=>{
-      if(!entry.isIntersecting) return;
-      __d2sIconObserver.unobserve(entry.target);
-      const load = entry.target.__d2sLoadIcon;
-      if(load) load();
+  try {
+    const res = await rateLimitedFetch(`${BUNGIE_BASE}/Destiny2/Armory/Search/DestinyInventoryItemDefinition/${encodeURIComponent(itemName)}/`, {
+      headers: { "X-API-Key": BUNGIE_API_KEY }
     });
-  }, {rootMargin:"240px 0px"});
-  return __d2sIconObserver;
-}
-
-// Backward-compatible helper used throughout the UI. `source` may be a name,
-// a manifest definition, or a live inventory object with hash/icon fields.
-function attachLiveIcon(container, source, itemType, options={}){
-  if(!container || !source) return null;
-  const parts = iconSourceParts(source);
-  const key = `${String(itemType||"item").toLowerCase()}|${parts.hash||normalizeIconLookupName(parts.name)}`;
-  if(!parts.hash && !normalizeIconLookupName(parts.name) && !parts.icon) return null;
-  if(Array.from(container.querySelectorAll('img[data-d2-icon-key]')).some(node=>node.dataset.d2IconKey===key)) return null;
-
-  const img = document.createElement("img");
-  img.className = `bungiePublicIcon bungiePublicIcon--${String(itemType||"item").replace(/[^a-z0-9_-]/gi,"").toLowerCase()}`;
-  img.dataset.d2IconKey = key;
-  img.alt = parts.name ? `${parts.name} icon` : "Destiny 2 icon";
-  img.title = parts.name || "Destiny 2 manifest icon";
-  img.loading = "lazy";
-  img.decoding = "async";
-  img.referrerPolicy = "no-referrer";
-  if(options.size) img.style.setProperty("--bungie-icon-size", `${Number(options.size)}px`);
-  if(options.className) img.classList.add(...String(options.className).split(/\s+/).filter(Boolean));
-  container.insertBefore(img, container.firstChild);
-
-  let started = false;
-  const load = async()=>{
-    if(started) return; started = true;
-    const url = await resolvePublicBungieIcon(source, itemType);
-    if(!img.isConnected) return;
-    if(!url){ img.remove(); return; }
-    img.onerror = ()=>img.remove();
-    img.src = url;
-    img.classList.add("loaded");
-    container.classList.add("hasBungiePublicIcon");
-  };
-  img.__d2sLoadIcon = load;
-
-  const direct = publicBungieIconUrl(parts.icon);
-  if(direct){ load(); }
-  else {
-    const observer = ensureIconObserver();
-    if(observer) observer.observe(img); else load();
+    if(!res.ok) throw new Error("http "+res.status);
+    const json = await res.json();
+    const results = json?.Response?.results?.results || [];
+    const match = results.find(r=>r.displayProperties?.name?.toLowerCase() === itemName.toLowerCase()) || results[0];
+    if(!match || !match.displayProperties?.icon){ iconCache[itemName] = null; persistIconCache(); return; }
+    const iconUrl = "https://www.bungie.net" + match.displayProperties.icon;
+    iconCache[itemName] = iconUrl;
+    persistIconCache();
+    const img = document.createElement('img');
+    img.src = iconUrl; img.style.width='32px'; img.style.height='32px'; img.style.borderRadius='4px'; img.style.marginRight='8px'; img.style.verticalAlign='middle';
+    container.insertBefore(img, container.firstChild);
+  } catch(e){
+    iconCache[itemName] = null; // don't keep retrying a failed lookup
   }
-  return img;
 }
 
 // Known Bungie ErrorCode values worth explaining clearly rather than just
@@ -422,43 +292,39 @@ const BUCKET_TO_ARMOR_SLOT = {3448274439:"Helmet", 3551918588:"Arms", 14239492:"
 // unlocked artifact perks, rather than each sync button hitting the API
 // separately.
 let realGearCache = {fetchedAt: 0, weaponsBySlot: {Kinetic:[], Energy:[], Power:[]}, armorBySlot: {Helmet:[], Arms:[], Chest:[], Legs:[], ClassItem:[]}, artifactPerkHashes: [], artifactPowerBonus: 0};
-async function populateRealGearCacheFromFullInventory(full){
-  const {characters, vault, artifactPerkHashes, artifactPowerBonus} = full;
+async function refreshMyRealGear(){
+  const auth = await getValidAccessToken();
+  if(!auth) throw new Error("Not signed in \u2014 sign in above to sync your real gear here.");
+  const membership = await getMembershipsForCurrentUser(auth.access_token);
+  const {characters, vault, artifactPerkHashes, artifactPowerBonus} = await getFullInventory(membership.membershipType, membership.membershipId);
   const allItems = [...vault];
   characters.forEach(c=>{ allItems.push(...c.equipped); allItems.push(...c.inventory); });
   const weaponsBySlot = {Kinetic:[], Energy:[], Power:[]};
   const armorBySlot = {Helmet:[], Arms:[], Chest:[], Legs:[], ClassItem:[]};
-  const seen = new Set();
+  const seen = new Set(); // de-dupe: same item can appear via multiple characters/vault views
   await Promise.all(allItems.map(async item=>{
     if(!item.instanceId || seen.has(item.instanceId)) return;
     try {
-      const def = item._def || await getItemDefinition(item.hash);
-      item._def = def;
+      const def = await getItemDefinition(item.hash);
       const built = {
-        hash:item.hash, instanceId:item.instanceId, name:def.name, icon:def.icon,
-        element:DAMAGE_TYPE_TO_ELEMENT[def.damageType]||'Kinetic', typeName:def.typeName,
-        power:item.power, isMasterworked:item.isMasterworked, energyCapacity:item.energyCapacity,
-        stats:item.stats, sockets:item.sockets||[], socketedPlugHashes:item.socketedPlugHashes||[],
-        isExotic:def.tierType===6,
+        hash: item.hash, instanceId: item.instanceId, name: def.name, icon: def.icon,
+        element: DAMAGE_TYPE_TO_ELEMENT[def.damageType] || "Kinetic",
+        typeName: def.typeName, power: item.power, isMasterworked: item.isMasterworked,
+        energyCapacity: item.energyCapacity, stats: item.stats,
+        socketedPlugHashes: item.socketedPlugHashes || [],
+        isExotic: def.tierType === 6,
       };
-      const weaponSlot=BUCKET_TO_WEAPON_SLOT[def.bucketHash];
-      const armorSlot=BUCKET_TO_ARMOR_SLOT[def.bucketHash];
+      const weaponSlot = BUCKET_TO_WEAPON_SLOT[def.bucketHash];
+      const armorSlot = BUCKET_TO_ARMOR_SLOT[def.bucketHash];
       if(weaponSlot){ seen.add(item.instanceId); weaponsBySlot[weaponSlot].push(built); }
       else if(armorSlot){ seen.add(item.instanceId); armorBySlot[armorSlot].push(built); }
-    } catch(e){}
+    } catch(e){ /* skip unresolvable items */ }
   }));
   Object.values(weaponsBySlot).forEach(arr=>arr.sort((a,b)=>(b.power||0)-(a.power||0)));
   Object.values(armorBySlot).forEach(arr=>arr.sort((a,b)=>(b.power||0)-(a.power||0)));
-  realGearCache={fetchedAt:Date.now(),weaponsBySlot,armorBySlot,artifactPerkHashes:artifactPerkHashes||[],artifactPowerBonus:artifactPowerBonus||0};
-  realWeaponsCache={fetchedAt:realGearCache.fetchedAt,bySlot:weaponsBySlot};
+  realGearCache = {fetchedAt: Date.now(), weaponsBySlot, armorBySlot, artifactPerkHashes: artifactPerkHashes||[], artifactPowerBonus: artifactPowerBonus||0};
+  realWeaponsCache = {fetchedAt: realGearCache.fetchedAt, bySlot: weaponsBySlot}; // keep the existing weapons-only cache in sync too
   return realGearCache;
-}
-async function refreshMyRealGear(){
-  const auth=await getValidAccessToken();
-  if(!auth) throw new Error('Not signed in — sign in above to sync your real gear here.');
-  const membership=await getMembershipsForCurrentUser(auth.access_token);
-  const full=await getFullInventory(membership.membershipType,membership.membershipId);
-  return populateRealGearCacheFromFullInventory(full);
 }
 // Kept for the existing "Load My Weapons" button — now just a thin wrapper.
 async function refreshMyRealWeapons(){ return refreshMyRealGear(); }
@@ -470,59 +336,89 @@ async function refreshMyRealWeapons(){ return refreshMyRealGear(); }
 async function syncEverything(){
   const btn = document.getElementById('globalSyncBtn');
   const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Loading account…';
+  btn.disabled = true; btn.textContent = 'Syncing...';
+  const results = [];
   try {
+    await refreshMyRealGear();
+
+    // Exotic armor + weapon — highest-power owned exotic that matches this
+    // tool's known list, per category.
+    const ownedExoticArmor = Object.values(realGearCache.armorBySlot).flat().filter(a=>a.isExotic);
+    const myExotics = EXOTIC_ARMOR[state.cls] || [];
+    const foundArmor = ownedExoticArmor.find(a=>myExotics.some(e=>e.name.toLowerCase()===a.name.toLowerCase()));
+    if(foundArmor){ state.exoticArmor = myExotics.find(e=>e.name.toLowerCase()===foundArmor.name.toLowerCase()).name; results.push('Exotic Armor: '+state.exoticArmor); }
+
+    const ownedExoticWeapons = Object.values(realGearCache.weaponsBySlot).flat().filter(w=>w.isExotic);
+    const foundWeapon = ownedExoticWeapons.find(w=>EXOTIC_WEAPONS.some(e=>e.name.toLowerCase()===w.name.toLowerCase()));
+    if(foundWeapon){ state.activeExoticWeapon = EXOTIC_WEAPONS.find(e=>e.name.toLowerCase()===foundWeapon.name.toLowerCase()).name; results.push('Exotic Weapon: '+state.activeExoticWeapon); }
+
+    // Legendary weapons — highest-power non-exotic item per slot.
+    for(const slot of ["Kinetic","Energy","Power"]){
+      const pick = (realGearCache.weaponsBySlot[slot]||[]).find(w=>!w.isExotic);
+      if(pick){ await selectRealWeapon(slot, pick); results.push(slot+' Weapon: '+pick.name); }
+    }
+
+    // Armor mods/stats — highest-power non-exotic item per piece.
+    for(const slotName of ["Helmet","Arms","Chest","Legs","ClassItem"]){
+      const pick = (realGearCache.armorBySlot[slotName]||[]).find(a=>!a.isExotic);
+      if(pick){ await selectRealArmor(slotName, pick); results.push(slotName+' Armor synced'); }
+    }
+
+    // Artifact — real unlocked+active perks.
+    const realNames = [];
+    for(const hash of realGearCache.artifactPerkHashes){
+      try { const def = await getItemDefinition(hash); if(def.name) realNames.push(def.name); } catch(e){}
+    }
+    if(realNames.length){
+      let bestArt = null, bestScore = 0;
+      ARTIFACTS.forEach(a=>{
+        const allNames = [...a.column1, ...a.column2, ...a.column3];
+        const score = allNames.filter(n=>realNames.some(rn=>rn.toLowerCase()===n.toLowerCase())).length;
+        if(score > bestScore){ bestScore = score; bestArt = a; }
+      });
+      if(bestArt){
+        state.artifact = bestArt.name;
+        const allNames = [...bestArt.column1, ...bestArt.column2, ...bestArt.column3];
+        state.artifactPerks = allNames.filter(n=>realNames.some(rn=>rn.toLowerCase()===n.toLowerCase())).slice(0,7);
+        state.artifactMode = "real";
+        results.push('Artifact: '+bestArt.name);
+      }
+    }
+
+    // Set bonuses — from the first character's actually-equipped armor.
     const auth = await getValidAccessToken();
-    if(!auth) throw new Error('Not signed in — open the menu and sign in with Bungie.net first.');
-
     const membership = await getMembershipsForCurrentUser(auth.access_token);
-    liveSyncState.membershipType = membership.membershipType;
-    liveSyncState.membershipId = membership.membershipId;
-
-    btn.textContent = 'Loading characters…';
-    const full = await getFullInventory(membership.membershipType, membership.membershipId);
-    liveSyncState.full = full;
-    liveSyncState.characters = full.characters;
-    liveSyncState.loading = false;
-
-    if(!full.characters.length) throw new Error('No Destiny 2 characters were returned for this account.');
-
-    btn.textContent = 'Resolving equipped gear…';
-    await Promise.all(full.characters.flatMap(c=>c.equipped).map(async item=>{
-      if(item._def) return;
-      try { item._def = await getItemDefinition(item.hash); }
-      catch(e){ item._def = null; }
-    }));
-
-    // Keep an existing selected character when it belongs to this profile.
-    // Otherwise choose the most recently played character, not characters[0].
-    let character = full.characters.find(c=>c.charId===state.selectedCharId);
-    if(!character){
-      character = [...full.characters].sort((a,b)=>{
-        const ad = a.dateLastPlayed ? Date.parse(a.dateLastPlayed) : 0;
-        const bd = b.dateLastPlayed ? Date.parse(b.dateLastPlayed) : 0;
-        return bd-ad;
-      })[0];
+    const {characters} = await getFullInventory(membership.membershipType, membership.membershipId);
+    if(characters.length){
+      const char = characters[0];
+      const newAssignment = {Helmet:null, Arms:null, Chest:null, Legs:null, ClassItem:null};
+      let matchedAny = false;
+      for(const item of char.equipped){
+        const def = await getItemDefinition(item.hash).catch(()=>null);
+        if(!def) continue;
+        const slotName = BUCKET_TO_ARMOR_SLOT[def.bucketHash];
+        if(!slotName) continue;
+        for(const plugHash of (item.socketedPlugHashes||[])){
+          const plugDef = await getItemDefinition(plugHash).catch(()=>null);
+          if(!plugDef || !plugDef.name) continue;
+          const matchedSet = ARMOR_SETS.find(s=>s.twoPiece.name.toLowerCase()===plugDef.name.toLowerCase() || s.fourPiece.name.toLowerCase()===plugDef.name.toLowerCase());
+          if(matchedSet){ newAssignment[slotName] = matchedSet.name; matchedAny = true; break; }
+        }
+      }
+      if(matchedAny){ state.armorSetByPiece = newAssignment; state.armorSetMode = "real"; results.push('Set bonuses synced'); }
     }
-    state.selectedCharId = character.charId;
 
-    btn.textContent = 'Applying live build…';
-    await applyLiveLoadout(character);
+    // Also flip the weapon/armor per-slot modes to "real" for anything we
+    // actually found, so the UI reflects the sync immediately.
+    ["Kinetic","Energy","Power"].forEach(slot=>{ if(state.legendaryRealItem[slot]) state.legendaryMode[slot] = "real"; });
+    ["Helmet","Arms","Chest","Legs","ClassItem"].forEach(slotName=>{ if(state.armorRealItem[slotName]) state.armorMode[slotName] = "real"; });
 
-    // Reuse this same profile response for the vault and gear selectors so
-    // one click does not immediately make a second full-profile request.
-    if(typeof populateRealGearCacheFromFullInventory === 'function'){
-      await populateRealGearCacheFromFullInventory(full);
-    }
     render();
-    fsToast(`Synced ${CLASS_TYPE_NAMES[character.classType]||'Guardian'} equipped build, subclass, artifact and armor sets.`, 'ok');
+    alert(results.length ? ('Synced:\n' + results.join('\n')) : 'Nothing matched this tool\u2019s known data to sync.');
   } catch(e){
-    console.error('Full live build sync failed', e);
-    fsToast('Sync failed: ' + e.message, 'err');
+    alert('Sync failed: ' + e.message);
   } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
+    btn.disabled = false; btn.textContent = originalText;
   }
 }
 document.getElementById('globalSyncBtn').onclick = syncEverything;
@@ -619,26 +515,13 @@ async function getItemDefinition(hash){
     try {
       const def = await bungieGet(`/Destiny2/Manifest/DestinyInventoryItemDefinition/${hash}/`);
       const result = {
-        hash: Number(hash),
         name: def.displayProperties?.name || "Unknown Item",
-        description: def.displayProperties?.description || "",
         icon: def.displayProperties?.icon ? "https://www.bungie.net" + def.displayProperties.icon : null,
         bucketHash: def.inventory?.bucketTypeHash || null,
-        damageType: def.defaultDamageType || 0,
-        itemType: def.itemType || 0,
-        itemSubType: def.itemSubType || 0,
-        tierType: def.inventory?.tierType || 0,
+        damageType: def.defaultDamageType || 0,      // 1=Kinetic 2=Arc 3=Solar 4=Void 6=Stasis 7=Strand
+        itemType: def.itemType || 0,                 // 2=Armor 3=Weapon
+        tierType: def.inventory?.tierType || 0,       // 6=Exotic 5=Legendary
         typeName: def.itemTypeDisplayName || "",
-        plugCategoryIdentifier: def.plug?.plugCategoryIdentifier || "",
-        plugCategoryHash: def.plug?.plugCategoryHash || null,
-        traitIds: def.traitIds || [],
-        itemCategoryHashes: def.itemCategoryHashes || [],
-        collectibleHash: def.collectibleHash || null,
-        socketCategories: (def.sockets?.socketCategories || []).map(c=>({socketCategoryHash:c.socketCategoryHash, socketIndexes:c.socketIndexes||[]})),
-        socketEntries: (def.sockets?.socketEntries || []).map(e=>({socketTypeHash:e.socketTypeHash, singleInitialItemHash:e.singleInitialItemHash, reusablePlugSetHash:e.reusablePlugSetHash, randomizedPlugSetHash:e.randomizedPlugSetHash})),
-        equippable: !!def.equippable,
-        classType: def.classType ?? 3,
-        iconWatermark: def.iconWatermark ? "https://www.bungie.net" + def.iconWatermark : null,
       };
       iconCache[hash] = result;
       persistIconCache();
@@ -648,36 +531,6 @@ async function getItemDefinition(hash){
     }
   })();
   return __defInFlight[hash];
-}
-
-
-const __bucketDefCache = {};
-const __bucketDefInFlight = {};
-async function getInventoryBucketDefinition(hash){
-  const key=String(hash||'');
-  if(!key) return null;
-  if(__bucketDefCache[key]) return __bucketDefCache[key];
-  if(__bucketDefInFlight[key]) return __bucketDefInFlight[key];
-  __bucketDefInFlight[key]=(async()=>{
-    try {
-      const def=await bungieGet(`/Destiny2/Manifest/DestinyInventoryBucketDefinition/${key}/`);
-      const result={
-        hash:Number(hash),
-        name:def.displayProperties?.name || BUCKET_NAMES[Number(hash)] || `Bucket ${hash}`,
-        description:def.displayProperties?.description || '',
-        scope:def.scope ?? 0,
-        category:def.category ?? 0,
-        bucketOrder:def.bucketOrder ?? 999,
-        itemCount:def.itemCount ?? 0,
-        location:def.location ?? 0,
-        hasTransferDestination:!!def.hasTransferDestination,
-        enabled:def.enabled !== false,
-      };
-      __bucketDefCache[key]=result;
-      return result;
-    } finally { delete __bucketDefInFlight[key]; }
-  })();
-  return __bucketDefInFlight[key];
 }
 
 async function searchBungiePlayer(bungieName){
@@ -709,14 +562,13 @@ async function getFullInventory(membershipType, membershipId){
   // the real API even though mocked tests passed), 305=ItemSockets
   // (currently-socketed plugs), 104=ProfileProgression (seasonal artifact's
   // unlocked perks — also previously missing here).
-  const profile = await bungieGet(`/Destiny2/${membershipType}/Profile/${membershipId}/?components=200,201,205,102,103,104,300,302,304,305,310`);
+  const profile = await bungieGet(`/Destiny2/${membershipType}/Profile/${membershipId}/?components=200,201,205,102,103,104,300,302,304,305`);
   const characters = profile.characters?.data || {};
   const equipment = profile.characterEquipment?.data || {};
   const inventories = profile.characterInventories?.data || {};
   const vaultItems = profile.profileInventory?.data?.items || [];
   const instanceStats = profile.itemComponents?.instances?.data || {};
   const socketData = profile.itemComponents?.sockets?.data || {};
-  const reusablePlugData = profile.itemComponents?.reusablePlugs?.data || {};
   const statData = profile.itemComponents?.stats?.data || {};
   const currencies = profile.profileCurrencies?.data?.items || []; // component 103
   // ItemState is a bitmask; bit value 4 = Masterworked (this specific flag
@@ -732,33 +584,15 @@ async function getFullInventory(membershipType, membershipId){
   const mapItem = i => {
     const inst = i.itemInstanceId ? instanceStats[i.itemInstanceId] : null;
     const sockets = i.itemInstanceId ? (socketData[i.itemInstanceId]?.sockets || []) : [];
-    const reusableBySocket = i.itemInstanceId ? (reusablePlugData[i.itemInstanceId]?.plugs || {}) : {};
     const stats = i.itemInstanceId ? (statData[i.itemInstanceId]?.stats || null) : null;
     return {
       hash: i.itemHash,
       instanceId: i.itemInstanceId || null,
       bucketHash: i.bucketHash || null,
-      quantity: Number(i.quantity || 1),
-      state: Number(i.state || 0),
-      transferStatus: Number(i.transferStatus || 0),
-      bindStatus: Number(i.bindStatus || 0),
-      location: Number(i.location || 0),
       power: inst?.primaryStat?.value || null,
-      energyCapacity: inst?.energy?.energyCapacity ?? null,
-      energyType: inst?.energy?.energyType ?? null,
-      isLocked: !!(Number(i.state || 0) & 1),
       isMasterworked: !!(inst && (inst.state & MASTERWORK_STATE_BIT)),
       socketedPlugHashes: sockets.filter(s=>s.isEnabled && s.plugHash).map(s=>s.plugHash),
-      sockets: sockets.map((socket,index)=>({
-        index,
-        plugHash: socket.plugHash || null,
-        isEnabled: socket.isEnabled !== false,
-        isVisible: socket.isVisible !== false,
-        reusablePlugHashes: Array.from(new Set([
-          ...(socket.reusablePlugItems||[]).map(p=>p.plugItemHash),
-          ...((reusableBySocket[index]||[]).map(p=>p.plugItemHash)),
-        ].filter(Boolean))),
-      })),
+      sockets: sockets,
       stats: stats,
     };
   };
@@ -767,7 +601,6 @@ async function getFullInventory(membershipType, membershipId){
     classType: characters[charId].classType, // 0=Titan, 1=Hunter, 2=Warlock
     light: characters[charId].light,
     emblemPath: characters[charId].emblemPath || null,
-    dateLastPlayed: characters[charId].dateLastPlayed || null,
     equipped: (equipment[charId]?.items || []).map(mapItem),
     inventory: (inventories[charId]?.items || []).map(mapItem),
   }));
