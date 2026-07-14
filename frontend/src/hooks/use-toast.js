@@ -37,56 +37,63 @@ const addToRemoveQueue = (toastId) => {
   toastTimeouts.set(toastId, timeout)
 }
 
+// Each action type is handled by a small, single-responsibility function so
+// the reducer stays a short dispatcher (keeps functions well under 50 lines).
+const addToast = (state, action) => ({
+  ...state,
+  toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+});
+
+const updateToast = (state, action) => ({
+  ...state,
+  toasts: state.toasts.map((t) =>
+    t.id === action.toast.id ? { ...t, ...action.toast } : t),
+});
+
+const dismissToast = (state, action) => {
+  const { toastId } = action
+
+  // ! Side effects ! - This could be extracted into a dismissToast() action,
+  // but I'll keep it here for simplicity
+  if (toastId) {
+    addToRemoveQueue(toastId)
+  } else {
+    state.toasts.forEach((toast) => {
+      addToRemoveQueue(toast.id)
+    })
+  }
+
+  return {
+    ...state,
+    toasts: state.toasts.map((t) =>
+      t.id === toastId || toastId === undefined
+        ? { ...t, open: false }
+        : t),
+  };
+};
+
+const removeToast = (state, action) => {
+  if (action.toastId === undefined) {
+    return { ...state, toasts: [] }
+  }
+  return {
+    ...state,
+    toasts: state.toasts.filter((t) => t.id !== action.toastId),
+  };
+};
+
 export const reducer = (state, action) => {
   switch (action.type) {
     case "ADD_TOAST":
-      return {
-        ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
-      };
-
+      return addToast(state, action);
     case "UPDATE_TOAST":
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === action.toast.id ? { ...t, ...action.toast } : t),
-      };
-
-    case "DISMISS_TOAST": {
-      const { toastId } = action
-
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
-      if (toastId) {
-        addToRemoveQueue(toastId)
-      } else {
-        state.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id)
-        })
-      }
-
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId || toastId === undefined
-            ? {
-                ...t,
-                open: false,
-              }
-            : t),
-      };
-    }
+      return updateToast(state, action);
+    case "DISMISS_TOAST":
+      return dismissToast(state, action);
     case "REMOVE_TOAST":
-      if (action.toastId === undefined) {
-        return {
-          ...state,
-          toasts: [],
-        }
-      }
-      return {
-        ...state,
-        toasts: state.toasts.filter((t) => t.id !== action.toastId),
-      };
+      return removeToast(state, action);
+    default:
+      return state;
   }
 }
 
@@ -143,7 +150,9 @@ function useToast() {
         listeners.splice(index, 1)
       }
     };
-  }, [state])
+    // `listeners` and `setState` are stable module-level / React refs, so the
+    // subscription should register once on mount and clean up on unmount.
+  }, [])
 
   return {
     ...state,
