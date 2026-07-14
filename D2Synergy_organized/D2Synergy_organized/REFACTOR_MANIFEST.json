@@ -1,0 +1,35 @@
+{
+  "source_lines": {
+    "html": 126,
+    "css_original": 272,
+    "js_original": 5813
+  },
+  "javascript_files": [
+    "js/data/subclasses.js",
+    "js/data/abilities.js",
+    "js/data/exotics.js",
+    "js/data/weapons.js",
+    "js/data/armor.js",
+    "js/data/artifacts.js",
+    "js/core/state.js",
+    "js/core/synergy-engine.js",
+    "js/ui/builder.js",
+    "js/ui/readout.js",
+    "js/api/bungie.js",
+    "js/features/vault.js",
+    "js/features/activities-vendors.js",
+    "js/features/live-character-sync.js",
+    "js/features/item-detail.js",
+    "js/features/finalize-loadout.js"
+  ],
+  "css_files": [
+    "css/base.css",
+    "css/inventory.css",
+    "css/activities-vendors.css",
+    "css/layout.css",
+    "css/readout.css"
+  ],
+  "intentional_fixes": [
+    "Removed unmatched closing brace at original stylesheet line 172."
+  ]
+}
