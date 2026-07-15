@@ -1,0 +1,37 @@
+{
+  "release": "D2Synergy Operations, Vendors & Workspaces v12",
+  "build": "20260715-operations-workspaces-12",
+  "baseline": "D2Synergy Startup Click Hotfix v10",
+  "visual_source": "Claude Destiny aesthetic redesign + supplied Ghost loader",
+  "preservation_policy": "Preserve working Vault transfers, Bungie authentication, builder behavior, local loadouts, and the established visual design while fixing the reported navigation and data-presentation gaps.",
+  "critical_scripts": [
+    "js/ui/loader.js",
+    "js/core/bootstrap.js",
+    "js/ui/workspaces.js",
+    "js/features/activities-vendors.js",
+    "js/features/item-detail.js",
+    "js/ui/builder.js",
+    "js/api/bungie.js",
+    "js/pwa/startup.js"
+  ],
+  "staged_script_count": 18,
+  "changes": [
+    "parallel downloads inside dependency-safe startup phases",
+    "real visible workspace panels with heavy-view overlay routing",
+    "ritual vendor ordering and faction-emblem presentation",
+    "interactive vendor inventory category blocks",
+    "profile and character kiosk component support for Monument of Triumph entries",
+    "Vanguard, Crucible, Gambit, raid, and dungeon operation lanes",
+    "signed-in CharacterActivities enrichment for current Director nodes",
+    "exact live equipped-fragment highlighting",
+    "full tiered-weapon socket choices from instance reusable plugs, inline socket plugs, and reusable/randomized plug sets",
+    "service worker and manifest cache invalidation for v12"
+  ],
+  "validation": [
+    "all JavaScript files pass node --check",
+    "all workspace panels and action routes pass headless DOM tests",
+    "vendor order, kiosk grouping, live-fragment rendering, and six-choice tiered socket merging pass synthetic runtime tests",
+    "local asset references, JSON files, CSS brace balance, and duplicate HTML IDs pass static validation"
+  ],
+  "live_test_requirement": "Bungie-authenticated kiosk contents, current operations data, exact vendor sales, and transfers must be smoke-tested after deployment on the registered OAuth origin."
+}
