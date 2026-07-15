@@ -1,0 +1,23 @@
+{
+  "release": "D2Synergy Performance Foundation v9",
+  "build": "20260715-performance-9",
+  "baseline": "D2Synergy Foundation Workspace v8",
+  "visual_source": "Claude Destiny aesthetic redesign + supplied Ghost loader",
+  "preservation_policy": "Preserve existing behavior; change only bootstrap, caching, loading feedback, and targeted performance bottlenecks.",
+  "critical_scripts": [
+    "js/ui/loader.js",
+    "js/core/bootstrap.js",
+    "js/pwa/startup.js"
+  ],
+  "staged_script_count": 18,
+  "performance_changes": [
+    "staged script evaluation after launch-mode selection",
+    "idle script prefetch",
+    "service worker v9 cache strategy",
+    "manifest-hash deduplication in Vault definition resolution",
+    "debounced Vault search",
+    "requestAnimationFrame drag rendering",
+    "lazy asynchronous inventory image decoding",
+    "offscreen content visibility containment"
+  ]
+}
