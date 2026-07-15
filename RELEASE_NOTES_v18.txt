@@ -1,0 +1,11 @@
+D2Synergy v18 — Product Consolidation
+
+- Primary navigation reduced to Builder, Inventory, Loadouts, Activities & Progress, Collections.
+- Removed Command, Fireteam, and Fashion workspaces.
+- Hamburger reduced to Sign in with Bungie, Go Offline, and Settings.
+- Added lightweight settings for motion, density, text scaling, and cache refresh.
+- Collections foundation now provides category, ownership, and search controls.
+- Activities & Progress simplified to Overview, Vanguard, Crucible, Gambit, Raids & Dungeons, Pinnacles, Patterns, Catalysts.
+- Armor set information moved into each visible armor slot; standalone set-bonus panel removed.
+- Added transparent Build Coach warnings inside the Synergy readout.
+- Updated cache/build metadata to v18.
