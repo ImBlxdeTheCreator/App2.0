@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>D2Synergy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0c0f">
+<meta name="application-name" content="D2Synergy">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="D2Synergy">
+<link rel="manifest" href="manifest.webmanifest?v=19.0.5">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=9">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=9">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"></noscript>
+
+<link rel="stylesheet" href="css/base.css?v=20260716-stable-19-0-5">
+<link rel="stylesheet" href="css/inventory.css?v=20260716-stable-19-0-5">
+<link rel="stylesheet" href="css/activities-vendors.css?v=20260716-stable-19-0-5">
+<link rel="stylesheet" href="css/layout.css?v=20260716-stable-19-0-5">
+<link rel="stylesheet" href="css/readout.css?v=20260716-stable-19-0-5">
+<link rel="stylesheet" href="css/builder-blueprint.css?v=20260716-stable-19-0-5">
+</head>
+<body class="startupLocked">
+<div class="startupGate" id="startupGate" role="dialog" aria-modal="true" aria-labelledby="startupTitle">
+  <div class="startupBackdrop"></div>
+  <section class="startupCard">
+    <div class="startupMark" aria-hidden="true"><img src="assets/brand/ghost-loader.webp" alt=""></div>
+    <h1 id="startupTitle">D2Synergy</h1>
+    <p class="startupLead">Choose how you want to launch the companion app.</p>
+    <div class="startupActions">
+      <button class="startupButton offline" id="startupOfflineBtn">
+        <span class="startupButtonTitle">Load Offline</span>
+        <span class="startupButtonText">Use the builder and locally saved loadouts without connecting an account.</span>
+      </button>
+      <button class="startupButton bungie" id="startupBungieBtn">
+        <span class="startupButtonTitle">Sign in with Bungie</span>
+        <span class="startupButtonText">Load your Guardians, live equipment, Vault, currencies, and account data.</span>
+      </button>
+    </div>
+    <div class="startupStatus" id="startupStatus" aria-live="polite"></div>
+    <noscript><p class="startupStatus" style="color:var(--danger)">JavaScript is required to start D2Synergy.</p></noscript>
+    <button class="startupInstall" id="startupInstallBtn" hidden>Install D2Synergy</button>
+  </section>
+</div>
+
+<div class="d2GlobalLoader" id="d2GlobalLoader" hidden role="status" aria-live="polite">
+  <div class="d2GlobalLoaderCard">
+    <img src="assets/brand/ghost-loader.webp" alt="" class="d2LoaderGhost">
+    <strong id="d2GlobalLoaderMessage">Loading…</strong>
+    <span id="d2GlobalLoaderDetail"></span>
+    <div class="d2LoaderProgress" id="d2GlobalLoaderProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
+      <div class="d2LoaderProgressFill" id="d2GlobalLoaderProgressFill"></div>
+    </div>
+  </div>
+</div>
+
+<header class="top">
+  <div>
+    <h1>D2Synergy</h1>
+    <div class="tag">for build/theory crafting and damage %'s</div>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:8px; align-items:stretch;">
+    <button class="reset" id="syncDrawerBtn" title="Bungie Account Sync">&#9776;</button>
+    <button class="reset" id="installAppBtn" hidden>Install App</button>
+    <button class="reset" id="resetBtn">Reset Build</button>
+    <button class="reset" id="globalSyncBtn" title="Sync everything from your real account at once">Sync My Live Build</button>
+  </div>
+</header>
+<nav class="workspaceNav" id="workspaceNav" aria-label="D2Synergy primary navigation">
+  <button data-workspace="builder">Builder</button>
+  <button data-workspace="inventory">Vault</button>
+  <button data-workspace="artifact">Seasonal Artifact</button>
+  <button data-workspace="loadouts">Loadouts</button>
+  <button data-workspace="operations">Activities &amp; Progress</button>
+  <button data-workspace="collections">Collections</button>
+</nav>
+<main class="workspaceStage" id="workspaceStage">
+  <section class="workspacePanel" id="workspace-inventory" data-workspace-panel="inventory" aria-labelledby="workspace-inventory-title">
+    <div class="workspaceEmpty"><img src="assets/brand/ghost-loader.webp" alt=""><div><h2 id="workspace-inventory-title">Vault</h2><p>Opening the full Vault and character inventory view…</p><button class="workspaceOpenButton" data-workspace-action="inventory">Open Vault</button></div></div>
+  </section>
+  <section class="workspacePanel workspaceToolPanel artifactWorkspace" id="workspace-artifact" data-workspace-panel="artifact" aria-labelledby="workspace-artifact-title">
+    <header class="workspacePageHeader">
+      <div><span class="workspaceEyebrow">Build Planning</span><h2 id="workspace-artifact-title">Seasonal Artifact</h2><p>Review and plan the active artifact without burying it inside the Builder.</p></div>
+    </header>
+    <div class="artifactWorkspaceBody" id="artifactWorkspaceBody"></div>
+  </section>
+  <section class="workspacePanel workspaceToolPanel loadoutsWorkspace" id="workspace-loadouts" data-workspace-panel="loadouts" aria-labelledby="loadoutsTitle">
+    <header class="workspacePageHeader loadoutsHead">
+      <div><span class="workspaceEyebrow">Build Library</span><h2 id="loadoutsTitle">Saved Loadouts</h2><div class="sub">Available offline and while connected to Bungie</div></div>
+    </header>
+    <div class="loadoutsToolbar">
+      <input id="loadoutNameInput" class="fsSearch" maxlength="80" placeholder="Loadout name">
+      <button class="fsReload" id="saveLoadoutBtn">Save Current Build</button>
+      <button class="fsReload" id="exportLoadoutsBtn">Export</button>
+      <label class="fsReload loadoutImportLabel">Import<input type="file" id="importLoadoutsInput" accept="application/json,.json" hidden></label>
+    </div>
+    <div class="loadoutsBody" id="loadoutsBody"></div>
+  </section>
+  <section class="workspacePanel workspaceToolPanel activitiesWorkspace" id="workspace-operations" data-workspace-panel="operations" aria-labelledby="workspace-operations-title">
+    <header class="workspacePageHeader activitiesWorkspaceHead">
+      <div>
+        <span class="workspaceEyebrow">Guardian Operations</span><h2 id="workspace-operations-title">Activities &amp; Progress</h2>
+        <div class="sub" id="activitiesReset">Daily, weekly, and long-term rotations, rewards, progress, and quests</div>
+        <div class="workspaceLocalStatus" id="activitiesSyncStatus" data-status-scope="activities" role="status" aria-live="polite"></div>
+      </div>
+      <button class="fsReload" id="activitiesReloadBtn" data-testid="activities-reload-btn">Reload</button>
+    </header>
+    <div class="fsBody fsBodyCol embeddedWorkspaceBody" id="activitiesBody" data-testid="activities-body"></div>
+  </section>
+  <section class="workspacePanel workspaceToolPanel" id="workspace-collections" data-workspace-panel="collections" aria-labelledby="workspace-collections-title">
+    <div class="workspaceEmpty"><img src="assets/brand/ghost-loader.webp" alt=""><div><h2 id="workspace-collections-title">Collections</h2><p>Browse weapons, Exotics, armor, and customization with owned and unowned states.</p></div></div>
+  </section>
+</main>
+
+
+<div class="settingsOverlay" id="settingsOverlay" hidden>
+  <section class="settingsDialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <header><div><span class="workspaceEyebrow">Application</span><h2 id="settingsTitle">Settings</h2></div><button type="button" class="drawerClose" id="settingsCloseBtn" aria-label="Close settings">&times;</button></header>
+    <div class="settingsGrid">
+      <label><span>Motion</span><select id="settingMotion"><option value="system">Use device setting</option><option value="reduced">Reduce motion</option><option value="full">Full motion</option></select></label>
+      <label><span>Interface density</span><select id="settingDensity"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
+      <label><span>Text size</span><select id="settingText"><option value="100">Default</option><option value="110">Large</option><option value="120">Extra large</option></select></label>
+    </div>
+    <section class="settingsAccountSection" aria-labelledby="settingsAccountTitle">
+      <span class="workspaceEyebrow">Account</span><h3 id="settingsAccountTitle">Bungie Account</h3>
+      <div class="settingsAccountStatus" id="settingsAccountStatus">Offline</div>
+      <div class="settingsActions settingsAccountActions">
+        <button type="button" class="reset" id="settingsSignInBtn">Sign in</button>
+        <button type="button" class="reset" id="settingsSignOutBtn">Sign out</button>
+        <button type="button" class="reset" id="settingsGoOfflineBtn">Go Offline</button>
+      </div>
+    </section>
+    <div class="settingsActions"><button type="button" class="reset" id="settingsClearCache">Refresh cached app files</button></div>
+    <p class="workspaceMuted">Live, cached, planned, and unverified information are labeled separately throughout D2Synergy.</p>
+  </section>
+</div>
+
+<div class="equipmentEditorOverlay" id="equipmentEditorOverlay" hidden aria-hidden="true">
+  <section class="equipmentEditorSheet" role="dialog" aria-modal="true" aria-labelledby="equipmentEditorTitle">
+    <header class="equipmentEditorHead">
+      <div><span class="workspaceEyebrow" id="equipmentEditorEyebrow">Equipment</span><h2 id="equipmentEditorTitle">Advanced Details</h2><div class="sub" id="equipmentEditorSubtitle">Perks, stats, mods, and planning controls</div></div>
+      <button type="button" class="drawerClose" id="equipmentEditorCloseBtn" aria-label="Close advanced equipment details">&times;</button>
+    </header>
+    <div class="equipmentEditorBody" id="equipmentEditorBody"></div>
+  </section>
+</div>
+<div id="advancedPanelStaging" hidden></div>
+
+<div class="drawerOverlay" id="drawerOverlay"></div>
+<div class="drawer" id="syncDrawer">
+  <div class="drawerScrollBody">
+    <div class="drawerHead" style="justify-content:flex-end;">
+      <button class="drawerClose" id="drawerCloseBtn">&times;</button>
+    </div>
+    <div id="syncCol"></div>
+  </div>
+  <div class="drawerFooter" id="syncDrawerFooter"></div>
+</div>
+
+<!-- Phase 2: Full-Screen Vault View overlay (populated by JS) -->
+<div class="fsOverlay" id="vaultFsOverlay" data-testid="vault-fullscreen-overlay">
+  <div class="fsHead">
+    <div>
+      <h2>Vault &amp; Characters</h2>
+      <div class="sub">Full-screen inventory</div>
+    </div>
+    <input class="fsSearch" id="fsSearchInput" type="text" placeholder="Search items..." data-testid="vault-search-input" />
+    <div class="fsChips" id="fsElemChips" data-testid="vault-element-filters"></div>
+    <div class="fsChips" id="fsTypeChips" data-testid="vault-type-filters"></div>
+    <button class="fsReload" id="fsReloadBtn" data-testid="vault-reload-btn">Reload</button>
+    <button class="fsClose" id="fsCloseBtn" title="Close" data-testid="vault-close-btn">&times;</button>
+  </div>
+  <div class="fsBody" id="fsBody" data-testid="vault-body"></div>
+</div>
+
+<!-- Phase 3: Vendor Inventories window -->
+<div class="fsOverlay" id="vendorsOverlay" data-testid="vendors-overlay">
+  <div class="fsHead">
+    <div>
+      <h2>Vendor Inventories</h2>
+      <div class="sub" id="vendorsReset">Live vendor sales</div>
+      <div class="workspaceLocalStatus" id="vendorsSyncStatus" data-status-scope="vendors" role="status" aria-live="polite"></div>
+    </div>
+    <input class="fsSearch" id="vendorsSearch" type="text" placeholder="Search items..." data-testid="vendors-search-input" />
+    <button class="fsReload" id="vendorsReloadBtn" data-testid="vendors-reload-btn">Reload</button>
+    <button class="fsClose" id="vendorsCloseBtn" title="Close" data-testid="vendors-close-btn">&times;</button>
+  </div>
+  <div class="fsBody fsBodyCol" id="vendorsBody" data-testid="vendors-body"></div>
+</div>
+
+<!-- Phase 3: DIM-style item detail modal (populated by JS) -->
+<div class="idOverlay" id="itemDetailOverlay" data-testid="item-detail-overlay">
+  <div class="idCard" id="itemDetailCard"></div>
+</div>
+
+<section class="workspacePanel workspaceBuilderPanel" id="workspace-builder" data-workspace-panel="builder" aria-label="Builder workspace">
+<div class="charBar" id="charBar" data-testid="character-bar"></div>
+<div class="workspaceLocalStatus" id="builderSyncStatus" data-status-scope="builder" role="status" aria-live="polite"></div>
+<div class="builderWorkspaceShell" id="builderWorkspaceShell">
+  <div class="builderDesktopShell" id="builderDesktopShell" aria-label="Desktop builder layout">
+    <aside class="builderDesktopReadout" id="builderDesktopReadoutSlot"></aside>
+    <aside class="builderDesktopStats" id="builderDesktopStatsSlot"></aside>
+    <header class="builderToolbar" id="builderDesktopToolbar"></header>
+    <main class="builderDesktopEditor builderBlueprintEditor" id="builderDesktopEditorSlot"></main>
+  </div>
+  <div class="builderMobileShell" id="builderMobileShell" aria-label="Mobile builder layout">
+    <div class="builderMobileSummary">
+      <aside class="builderMobileReadout" id="builderMobileReadoutSlot"></aside>
+      <aside class="builderMobileStats" id="builderMobileStatsSlot"></aside>
+    </div>
+    <main class="builderMobileEditor builderBlueprintEditor" id="builderMobileEditorSlot">
+      <header class="builderToolbar" id="builderMobileToolbar"></header>
+    </main>
+  </div>
+</div>
+
+<!-- Shared live builder nodes are mounted into exactly one responsive shell at a time. -->
+<div id="builderSharedNodes" hidden>
+  <div class="accordionHead" id="readoutToggle">
+    <h2>Build Synergy Readout</h2>
+    <span class="hint" id="readoutHint"></span>
+    <span class="chev open" id="readoutChev">&#9656;</span>
+  </div>
+  <div class="col readout" id="readoutCol"></div>
+  <div class="accordionHead" id="statsToggle">
+    <h2>Character Stats</h2>
+    <span class="hint" id="statsHint"></span>
+    <span class="chev open" id="statsChev">&#9656;</span>
+  </div>
+  <div class="col readout" id="statsCol"></div>
+  <div class="col builder" id="builderCol"></div>
+</div>
+</section>
+
+<script src="js/ui/loader.js?v=20260716-stable-19-0-5"></script>
+<script src="js/core/bootstrap.js?v=20260716-stable-19-0-5"></script>
+<script src="js/pwa/startup.js?v=20260716-stable-19-0-5"></script>
+
+</body>
+</html>
