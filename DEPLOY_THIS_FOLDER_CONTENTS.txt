@@ -1,1 +1,0 @@
-Upload every file and folder in this ZIP to the root of the D2Synergy GitHub Pages repository. This is D2Synergy v18.2.1 Interaction Hotfix.
