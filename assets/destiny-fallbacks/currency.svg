@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="D2Synergy currency fallback">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#171c22"/><stop offset="1" stop-color="#080a0d"/></linearGradient></defs>
+  <rect width="128" height="128" rx="10" fill="url(#g)"/>
+  <path d="M64 18 99 38v40L64 98 29 78V38Z" fill="none" stroke="#d4af37" stroke-width="5" opacity=".82"/>
+  <circle cx="64" cy="58" r="17" fill="none" stroke="#e9e7e0" stroke-width="4" opacity=".9"/>
+  <path d="M64 41v34M47 58h34" stroke="#e9e7e0" stroke-width="3" opacity=".45"/>
+  <text x="64" y="119" text-anchor="middle" fill="#d4af37" font-family="Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1">CUR</text>
+</svg>
