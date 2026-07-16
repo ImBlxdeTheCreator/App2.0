@@ -1,0 +1,3 @@
+D2Synergy v17 — Always-visible Equipment Editor
+
+This release adds persistent weapon and armor slot cards to the Builder, unified rarity selectors, synced armor planning controls, and removes stale sync prompts. Advanced perk/mod panels remain on demand.

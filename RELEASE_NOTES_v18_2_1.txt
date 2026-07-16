@@ -1,0 +1,7 @@
+D2Synergy v18.2.1 Interaction Hotfix
+
+- Fixed mixed v18.1/v18.2 service-worker and manifest cache identifiers.
+- Added strict pointer-event safety for every hidden/inactive full-screen overlay.
+- Added loader cleanup/watchdog so a failed background task cannot permanently block the UI.
+- Made workspace status indicators display-only and non-interactive.
+- Rebuilt status rendering without innerHTML.

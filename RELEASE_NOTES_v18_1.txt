@@ -1,0 +1,10 @@
+D2Synergy v18.1 Hotfix
+
+- Fixed a Builder initialization crash caused by the removed loadoutsBtn element.
+- Loadouts now open through the shared D2SynergyLoadouts API.
+- Fixed offline loadout updates throwing when Bungie authentication code is not loaded.
+- Removed eager preloading of the full Builder before launch mode selection.
+- Made Google Fonts non-render-blocking.
+- Corrected service-worker, manifest, and cache version mismatches.
+- Removed stale Activities & Progress copy for removed Triumphs/Collections sections.
+- Removed the stale Sync My Real Build artifact instruction.
