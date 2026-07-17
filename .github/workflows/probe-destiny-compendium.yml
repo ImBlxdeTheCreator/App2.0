@@ -2,7 +2,7 @@
 name: Probe Destiny Data Compendium
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions:
   contents: read
