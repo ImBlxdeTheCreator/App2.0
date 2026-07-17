@@ -30,9 +30,14 @@ jobs:
           BUNGIE_API_KEY: ${{ secrets.BUNGIE_API_KEY }}
         run: node scripts/download-manifest.mjs
 
-      - name: Upload downloaded data
+      - name: Build D2Synergy Database
+        run: node scripts/build-d2synergy-database.mjs
+
+      - name: Upload D2Synergy data
         uses: actions/upload-artifact@v4
         with:
-          name: d2synergy-source-data
-          path: temp/
+          name: d2synergy-database-build
+          path: |
+            temp/
+            generated/
           if-no-files-found: error
