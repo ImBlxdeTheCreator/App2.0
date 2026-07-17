@@ -1,0 +1,56 @@
+name: Resolve Exotic Hashes
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 8 * * 1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: resolve-exotic-hashes
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Resolve Exotic hashes
+        env:
+          BUNGIE_API_KEY: ${{ secrets.BUNGIE_API_KEY }}
+        run: node scripts/resolve-curated-hashes.mjs js/data/exotics.js
+
+      - name: Upload resolution report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exotic-hash-resolution-report
+          path: js/data/exotics-hash-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Commit resolved hashes
+        run: |
+          if git diff --quiet -- js/data/exotics.js; then
+            echo "No new hashes were resolved."
+            exit 0
+          fi
+
+          git config user.name "d2synergy-hash-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add js/data/exotics.js
+          git commit -m "Resolve curated Exotic Bungie hashes"
+          git push
