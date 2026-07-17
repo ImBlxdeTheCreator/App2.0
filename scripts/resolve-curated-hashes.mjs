@@ -22,18 +22,56 @@ const classType={Titan:0,Hunter:1,Warlock:2};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const norm=s=>String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[’\'`]/g,'').replace(/[–—]/g,'-').replace(/[^a-zA-Z0-9]+/g,' ').trim().toLowerCase();
 
-async function bungie(pathname){
-  let last;
-  for(let attempt=0;attempt<4;attempt++){
-    try{
-      const r=await fetch(base+pathname,{headers:{'X-API-Key':apiKey}});
-      const body=await r.json();
-      if(r.ok&&body?.ErrorCode===1)return body.Response;
-      last=new Error(body?.Message||`HTTP ${r.status}`);
-    }catch(e){last=e;}
-    await sleep(600*2**attempt);
+async function bungie(pathname) {
+  let lastError;
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const url = base + pathname;
+
+      const response = await fetch(url, {
+        headers: {
+          'X-API-Key': apiKey,
+          'Accept': 'application/json'
+        }
+      });
+
+      const rawBody = await response.text();
+
+      let body;
+      try {
+        body = JSON.parse(rawBody);
+      } catch {
+        throw new Error(
+          `HTTP ${response.status} returned non-JSON: ${rawBody.slice(0, 300)}`
+        );
+      }
+
+      if (response.ok && body?.ErrorCode === 1) {
+        return body.Response;
+      }
+
+      throw new Error(
+        `HTTP ${response.status}; ` +
+        `ErrorCode=${body?.ErrorCode ?? 'unknown'}; ` +
+        `ErrorStatus=${body?.ErrorStatus ?? 'unknown'}; ` +
+        `Message=${body?.Message ?? 'No Bungie message'}`
+      );
+    } catch (error) {
+      lastError = error;
+
+      console.error(
+        `\nAttempt ${attempt + 1}/4 failed: ` +
+        `${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    if (attempt < 3) {
+      await sleep(600 * 2 ** attempt);
+    }
   }
-  throw last;
+
+  throw lastError ?? new Error('Unknown Bungie API failure');
 }
 
 async function searchOne(target){
@@ -81,7 +119,18 @@ for(let i=0;i<targets.length;i++){
     }else{
       report[result.status].push({...target,candidates:result.candidates});console.log(result.status);
     }
-  }catch(error){report.errors.push({...target,error:String(error?.message||error)});console.log('error');}
+  } catch (error) {
+  const message = error instanceof Error
+    ? error.message
+    : String(error);
+
+  report.errors.push({
+    ...target,
+    error: message
+  });
+
+  console.log(`error: ${message}`);
+}
   await sleep(55);
 }
 report.finishedAt=new Date().toISOString();
