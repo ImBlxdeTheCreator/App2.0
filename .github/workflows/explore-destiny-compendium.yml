@@ -1,0 +1,292 @@
+name: Explore Destiny Data Compendium
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  explore:
+    name: Discover Compendium tabs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download public spreadsheet page
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SHEET_ID="1WaxvbLx7UoSZaBqdFr1u32F2uWVLo-CJunJB4nlGUE4"
+          HTML_URL="https://docs.google.com/spreadsheets/u/0/d/${SHEET_ID}/htmlview"
+
+          mkdir -p compendium-explorer/tabs
+
+          echo "Downloading the public Compendium page..."
+
+          curl \
+            --location \
+            --fail \
+            --silent \
+            --show-error \
+            --retry 3 \
+            --user-agent "Mozilla/5.0 D2Synergy-Compendium-Explorer/1.0" \
+            --output compendium-explorer/compendium.html \
+            "${HTML_URL}"
+
+          echo "Public page downloaded."
+          echo "Downloaded bytes:"
+          wc -c compendium-explorer/compendium.html
+
+      - name: Discover tabs and download CSV files
+        shell: python
+        run: |
+          import csv
+          import html
+          import re
+          import subprocess
+          from pathlib import Path
+          from urllib.parse import unquote
+
+          SHEET_ID = "1WaxvbLx7UoSZaBqdFr1u32F2uWVLo-CJunJB4nlGUE4"
+
+          root = Path("compendium-explorer")
+          tabs_directory = root / "tabs"
+          html_file = root / "compendium.html"
+          report_file = root / "compendium-report.txt"
+          index_file = root / "tab-index.csv"
+
+          page = html_file.read_text(
+              encoding="utf-8",
+              errors="replace",
+          )
+
+          # Find every Google Sheets tab identifier exposed by the
+          # public HTML view.
+          gid_matches = re.findall(
+              r"(?:[?&#]|&amp;)gid(?:=|%3D)(\d+)",
+              page,
+              flags=re.IGNORECASE,
+          )
+
+          gids = []
+          seen = set()
+
+          for gid in gid_matches:
+              if gid not in seen:
+                  seen.add(gid)
+                  gids.append(gid)
+
+          # Keep our already-confirmed Exotic Weapons tab available
+          # even if Google does not include it in a normal anchor.
+          confirmed_gid = "441434520"
+
+          if confirmed_gid not in seen:
+              gids.insert(0, confirmed_gid)
+
+          print(f"Discovered {len(gids)} unique tab identifiers.")
+          print()
+
+          results = []
+
+          for position, gid in enumerate(gids, start=1):
+              csv_url = (
+                  "https://docs.google.com/spreadsheets/d/"
+                  f"{SHEET_ID}/gviz/tq?tqx=out:csv&gid={gid}"
+              )
+
+              csv_path = tabs_directory / f"tab-{gid}.csv"
+
+              print(
+                  f"[{position}/{len(gids)}] "
+                  f"Downloading tab GID {gid}..."
+              )
+
+              command = [
+                  "curl",
+                  "--location",
+                  "--fail",
+                  "--silent",
+                  "--show-error",
+                  "--retry",
+                  "3",
+                  "--user-agent",
+                  "Mozilla/5.0 D2Synergy-Compendium-Explorer/1.0",
+                  "--output",
+                  str(csv_path),
+                  csv_url,
+              ]
+
+              try:
+                  subprocess.run(command, check=True)
+              except subprocess.CalledProcessError:
+                  results.append({
+                      "gid": gid,
+                      "status": "download_failed",
+                      "rows": 0,
+                      "columns": 0,
+                      "bytes": 0,
+                      "first_non_empty_cell": "",
+                  })
+                  print("  Download failed.")
+                  continue
+
+              byte_count = csv_path.stat().st_size
+              rows = []
+
+              try:
+                  with csv_path.open(
+                      "r",
+                      encoding="utf-8-sig",
+                      errors="replace",
+                      newline="",
+                  ) as file:
+                      rows = list(csv.reader(file))
+              except Exception as error:
+                  results.append({
+                      "gid": gid,
+                      "status": f"parse_failed: {error}",
+                      "rows": 0,
+                      "columns": 0,
+                      "bytes": byte_count,
+                      "first_non_empty_cell": "",
+                  })
+                  print(f"  CSV parsing failed: {error}")
+                  continue
+
+              row_count = len(rows)
+              column_count = max(
+                  (len(row) for row in rows),
+                  default=0,
+              )
+
+              first_non_empty_cell = ""
+
+              for row in rows:
+                  for cell in row:
+                      cleaned = " ".join(
+                          html.unescape(
+                              unquote(cell)
+                          ).split()
+                      )
+
+                      if cleaned:
+                          first_non_empty_cell = cleaned[:160]
+                          break
+
+                  if first_non_empty_cell:
+                      break
+
+              results.append({
+                  "gid": gid,
+                  "status": "downloaded",
+                  "rows": row_count,
+                  "columns": column_count,
+                  "bytes": byte_count,
+                  "first_non_empty_cell": first_non_empty_cell,
+              })
+
+              print(f"  Rows: {row_count}")
+              print(f"  Maximum columns: {column_count}")
+              print(f"  Bytes: {byte_count}")
+              print(
+                  "  First visible cell: "
+                  f"{first_non_empty_cell or '[empty]'}"
+              )
+              print()
+
+          with index_file.open(
+              "w",
+              encoding="utf-8",
+              newline="",
+          ) as file:
+              writer = csv.DictWriter(
+                  file,
+                  fieldnames=[
+                      "gid",
+                      "status",
+                      "rows",
+                      "columns",
+                      "bytes",
+                      "first_non_empty_cell",
+                  ],
+              )
+              writer.writeheader()
+              writer.writerows(results)
+
+          downloaded = [
+              result
+              for result in results
+              if result["status"] == "downloaded"
+          ]
+
+          with report_file.open(
+              "w",
+              encoding="utf-8",
+          ) as file:
+              file.write("D2Synergy Compendium Explorer\n")
+              file.write("============================\n\n")
+              file.write(
+                  f"Tab identifiers discovered: {len(gids)}\n"
+              )
+              file.write(
+                  f"Tabs successfully downloaded: {len(downloaded)}\n\n"
+              )
+
+              for result in results:
+                  file.write(f"GID: {result['gid']}\n")
+                  file.write(f"Status: {result['status']}\n")
+                  file.write(f"Rows: {result['rows']}\n")
+                  file.write(
+                      f"Maximum columns: {result['columns']}\n"
+                  )
+                  file.write(f"Bytes: {result['bytes']}\n")
+                  file.write(
+                      "First visible cell: "
+                      f"{result['first_non_empty_cell'] or '[empty]'}\n"
+                  )
+                  file.write("----------------------------------------\n")
+
+          print()
+          print("========================================")
+          print("COMPENDIUM EXPLORER SUMMARY")
+          print("========================================")
+          print(f"Tab identifiers found: {len(gids)}")
+          print(
+              "Tabs successfully downloaded: "
+              f"{len(downloaded)}"
+          )
+          print()
+          print("Explorer report created:")
+          print(report_file)
+          print()
+          print("Tab index created:")
+          print(index_file)
+
+          if not downloaded:
+              raise SystemExit(
+                  "No Compendium tabs could be downloaded."
+              )
+
+      - name: Show explorer report
+        if: always()
+        shell: bash
+        run: |
+          echo
+          echo "========================================"
+          echo "EXPLORER REPORT"
+          echo "========================================"
+
+          if [[ -f compendium-explorer/compendium-report.txt ]]; then
+            cat compendium-explorer/compendium-report.txt
+          else
+            echo "The explorer report was not created."
+          fi
+
+      - name: Upload explorer results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: destiny-compendium-explorer
+          path: compendium-explorer/
+          retention-days: 7
