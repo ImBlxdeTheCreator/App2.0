@@ -1,0 +1,119 @@
+/* D2Synergy Builder Blueprint v13
+   Canonical desktop/mobile builder layout based on the approved blueprints. */
+.builderWorkspaceShell{min-height:calc(100vh - 116px);background:var(--bg);}
+.builderDesktopShell,.builderMobileShell{display:none;}
+.builderToolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:54px;padding:9px 14px;border:1px solid var(--line);background:linear-gradient(180deg,#11161c,#0d1116);}
+.builderToolbarTitle{font:600 15px 'Oswald';letter-spacing:.08em;text-transform:uppercase;}
+.builderToolbarActions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.builderToolButton{min-height:34px;padding:7px 12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:500 11px 'Oswald';letter-spacing:.055em;text-transform:uppercase;cursor:pointer;transition:border-color .15s,background .15s,transform .15s;}
+.builderToolButton:hover{border-color:var(--gold);background:rgba(212,175,55,.08);transform:translateY(-1px)}
+.builderToolButton:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+.builderToolButton .toolIcon{margin-right:6px;color:var(--gold)}
+
+/* Desktop: readout | stats rail | independent editor */
+@media (min-width: 821px){
+  .builderDesktopShell{display:grid;grid-template-columns:minmax(250px,290px) 116px minmax(0,1fr);grid-template-rows:auto auto;min-height:620px;align-items:start;border-top:1px solid var(--line);background:var(--line);gap:1px;overflow:visible;}
+  .builderDesktopShell .builderToolbar{grid-column:3;grid-row:1;position:sticky;top:116px;z-index:5;}
+  .builderDesktopReadout{grid-column:1;grid-row:1 / span 2;min-width:0;height:calc(100vh - 116px);position:sticky;top:116px;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+  .builderDesktopStats{grid-column:2;grid-row:1 / span 2;min-width:0;height:calc(100vh - 116px);position:sticky;top:116px;background:#0d1116;display:flex;flex-direction:column;overflow:hidden;}
+  .builderDesktopEditor{grid-column:3;grid-row:2;min-width:0;min-height:0;background:var(--bg);overflow:visible;}
+  .builderDesktopReadout .accordionHead,.builderDesktopStats .accordionHead{position:sticky;top:0;z-index:4;flex:0 0 auto;min-height:54px;padding:12px 13px;cursor:default;}
+  .builderDesktopReadout .accordionHead .chev,.builderDesktopStats .accordionHead .chev,.builderDesktopReadout .hint,.builderDesktopStats .hint{display:none;}
+  .builderDesktopReadout #readoutCol{display:block!important;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:12px;}
+  .builderDesktopStats #statsCol{display:block!important;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:8px;}
+  .builderDesktopEditor #builderCol{padding:14px 16px 40px;}
+  .builderDesktopEditor .accordionHead{position:sticky;top:116px;z-index:3;}
+}
+
+/* Mobile portrait/landscape: separate rendering shell. */
+@media (max-width: 820px){
+  .builderMobileShell{display:block;background:var(--bg);}
+  .builderMobileSummary{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:1px;background:var(--line);border-top:1px solid var(--line);border-bottom:1px solid var(--line);min-height:270px;max-height:48vh;overflow:hidden;}
+  .builderMobileReadout,.builderMobileStats{background:var(--bg);min-width:0;display:flex;flex-direction:column;overflow:hidden;}
+  .builderMobileReadout .accordionHead,.builderMobileStats .accordionHead{min-height:48px;padding:10px 12px;cursor:default;}
+  .builderMobileReadout .accordionHead .chev,.builderMobileStats .accordionHead .chev,.builderMobileReadout .hint,.builderMobileStats .hint{display:none;}
+  .builderMobileReadout #readoutCol,.builderMobileStats #statsCol{display:block!important;flex:1;overflow:auto;padding:10px;}
+  .builderMobileEditor{border-top:1px solid var(--line);}
+  .builderMobileEditor .builderToolbar{position:sticky;top:115px;z-index:48;border-left:0;border-right:0;}
+  .builderMobileEditor .builderToolbarTitle{font-size:14px;}
+  .builderMobileEditor .builderToolButton{padding:7px 9px;min-width:34px;}
+  .builderMobileEditor .builderToolButton .toolText{display:none;}
+  .builderMobileEditor #builderCol{padding:10px 10px 34px;}
+}
+@media (max-width: 520px){
+  .builderMobileSummary{grid-template-columns:minmax(0,1fr) 78px;min-height:245px;max-height:44vh;}
+  .builderMobileReadout #readoutCol,.builderMobileStats #statsCol{padding:7px;}
+  .builderMobileEditor .builderToolbar{top:115px;padding:7px 9px;}
+}
+@media (max-width: 820px) and (orientation: landscape){
+  .builderMobileShell{display:grid;grid-template-columns:minmax(240px,34%) 88px minmax(0,1fr);height:calc(100vh - 116px);overflow:hidden;background:var(--line);gap:1px;}
+  .builderMobileSummary{display:contents;}
+  .builderMobileReadout{grid-column:1;height:100%;}
+  .builderMobileStats{grid-column:2;height:100%;}
+  .builderMobileEditor{grid-column:3;height:100%;overflow:auto;background:var(--bg);border-top:0;}
+  .builderMobileEditor .builderToolbar{top:0;}
+}
+
+/* Blueprint readout summary */
+.synergyHero{padding:12px 12px 10px;border:1px solid var(--line);background:linear-gradient(145deg,rgba(212,175,55,.07),var(--panel));margin-bottom:9px;}
+.synergyHeroLabel{font:500 10px 'Inter';letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.synergyHeroValue{margin-top:4px;font:600 clamp(34px,4vw,48px) 'Oswald';letter-spacing:.025em;color:var(--gold);line-height:1;}
+.synergyHeroState{display:inline-flex;align-items:center;gap:5px;margin-top:7px;color:var(--good);font-size:12px;}
+.synergyCategoryGrid{display:grid;grid-template-columns:1fr auto;gap:7px 12px;padding:9px 4px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--line-soft);}
+.synergyCategoryGrid b{color:var(--text);font-family:'JetBrains Mono';font-weight:500;text-align:right;}
+.synergyBreakdownButton{width:100%;margin:9px 0 12px;padding:8px 10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:500 11px 'Oswald';letter-spacing:.06em;text-transform:uppercase;cursor:pointer;}
+.synergyBreakdownButton:hover{border-color:var(--gold);color:var(--gold)}
+.readoutDetails{overflow:hidden;max-height:4000px;opacity:1;transition:max-height .28s ease,opacity .2s ease;}
+.readoutDetails.collapsedDetails{max-height:0;opacity:0;}
+
+/* Compact interactive stat rail */
+.statRail{display:flex;flex-direction:column;gap:5px;}
+.statRailItem{width:100%;padding:8px 5px;border:1px solid transparent;background:transparent;color:var(--text);cursor:pointer;text-align:center;transition:border-color .14s,background .14s;}
+.statRailItem:hover,.statRailItem.open{border-color:var(--line);background:var(--panel2);}
+.statRailIcon{display:block;margin:0 auto 4px;color:var(--muted);font-size:16px;line-height:1;}
+.statRailValue{display:block;font:500 22px 'Oswald';line-height:1;}
+.statRailTier{display:block;margin-top:3px;color:var(--muted2);font:500 8px 'JetBrains Mono';text-transform:uppercase;letter-spacing:.05em;}
+.statRailDetails{display:none;margin-top:7px;padding-top:7px;border-top:1px solid var(--line-soft);color:var(--muted);font-size:9px;line-height:1.45;text-align:left;overflow-wrap:anywhere;}
+.statRailItem.open .statRailDetails{display:block;}
+.statRailSource{display:flex;justify-content:space-between;gap:5px;margin-top:3px;}
+.statRailSource b{color:var(--text);font-family:'JetBrains Mono';font-weight:500;}
+
+/* Make the existing builder panels match the compact blueprint editor. */
+.builderBlueprintEditor .accordionHead{min-height:48px;padding:11px 14px;background:linear-gradient(180deg,#151a20,#11161b);border:1px solid var(--line);margin-top:7px;}
+.builderBlueprintEditor .accordionHead:first-child{margin-top:0;}
+.builderBlueprintEditor .accordionHead h2{font-size:13px;}
+.builderBlueprintEditor .accordionHead .chev{font-size:13px;transition:transform .22s ease;}
+.builderBlueprintEditor .panel{margin:0;padding:13px 14px 16px;border-top:0;animation:builderPanelOpen .2s ease;}
+.builderBlueprintEditor .panel::before,.builderBlueprintEditor .panel::after{display:none;}
+.builderBlueprintEditor .chipgrid{grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:7px;}
+.builderBlueprintEditor .chip{min-height:54px;padding:8px 10px;}
+.builderBlueprintEditor select{min-height:40px;}
+@keyframes builderPanelOpen{from{opacity:.35;transform:translateY(-3px)}to{opacity:1;transform:none}}
+@media(max-width:520px){.builderBlueprintEditor .chipgrid{grid-template-columns:1fr 1fr}.builderBlueprintEditor .chip{min-height:50px;padding:7px}.builderBlueprintEditor .chip .desc{display:none}}
+@media(prefers-reduced-motion:reduce){.readoutDetails,.builderBlueprintEditor .panel,.builderToolButton{transition:none!important;animation:none!important}}
+
+/* v17 always-visible equipment editor */
+.equipmentOverview{padding:14px;margin-bottom:14px}
+.equipmentTitle{display:flex;align-items:baseline;gap:8px;font-family:var(--font-display,Inter,sans-serif);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+.equipmentTitle .n{color:var(--gold)}
+.equipmentTitle>span:last-child{font:500 11px/1.3 Inter,sans-serif;color:var(--muted);text-transform:none;letter-spacing:0}
+.equipmentGrid{display:grid;gap:10px}.weaponEquipmentGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.armorEquipmentGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.equipmentSlotCard{min-width:0;border:1px solid var(--line-soft);background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.015));padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.14)}
+.equipmentSlotName{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:7px}
+.equipmentCurrent{display:flex;gap:9px;align-items:center;min-height:52px;margin-bottom:8px}.equipmentIcon{width:48px;height:48px;flex:0 0 48px;background:rgba(255,255,255,.04);overflow:hidden}.equipmentIcon img{width:100%;height:100%;object-fit:cover}
+.equipmentCopy{min-width:0;display:flex;flex-direction:column}.equipmentCopy strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}.equipmentCopy span{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.segmented.compact{display:flex;gap:4px;margin-bottom:7px}.segmented.compact button{flex:1;border:1px solid var(--line-soft);background:transparent;color:var(--muted);padding:5px 4px;font-size:10px}.segmented.compact button.active{color:var(--gold);border-color:rgba(206,174,51,.65);background:rgba(206,174,51,.1)}
+.equipmentSelect{width:100%;min-width:0}.equipmentEdit{width:100%;margin-top:7px;border:1px solid var(--line-soft);background:rgba(255,255,255,.025);color:var(--muted);padding:7px}.equipmentEdit:hover{color:var(--text);border-color:var(--gold)}
+.armorQuickControls{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.armorQuickControls label{font-size:9px;color:var(--muted);text-transform:uppercase}.armorQuickControls select{width:100%;margin-top:3px}.equipmentModSummary{margin-top:7px;min-height:28px;font-size:10px;color:var(--muted);line-height:1.35;overflow-wrap:anywhere}
+@media(max-width:900px){.weaponEquipmentGrid,.armorEquipmentGrid{grid-template-columns:1fr}.equipmentTitle{align-items:flex-start;flex-wrap:wrap}.equipmentSlotCard{padding:11px}}
+
+/* v19.0.4 visible equipment summaries */
+.armorStatusGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px;}
+.armorStatusCell{border:1px solid var(--line-soft);background:rgba(255,255,255,.025);padding:7px 8px;min-width:0;}
+.armorStatusCell span{display:block;color:var(--muted2);font-size:9px;text-transform:uppercase;letter-spacing:.06em;}
+.armorStatusCell b{display:block;margin-top:2px;color:var(--text);font:600 12px 'Inter',sans-serif;white-space:normal;overflow-wrap:anywhere;}
+.armorStatusCell.good b{color:var(--good);}
+.statRailIdeal{display:inline-block;margin-left:5px;padding:1px 5px;border:1px solid rgba(100,220,150,.4);color:var(--good);font-size:8px;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle;}
+.readoutBreakdownHeading{margin:14px 0 8px;padding-top:10px;border-top:1px solid var(--line);font:600 12px 'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);}
+.bungieIconFallback{display:inline-grid;place-items:center;width:var(--bungie-icon-size,38px);height:var(--bungie-icon-size,38px);flex:0 0 auto;border:1px solid var(--line);background:linear-gradient(135deg,var(--panel2),#080a0d);color:var(--gold);font:600 11px 'Oswald',sans-serif;text-transform:uppercase;overflow:hidden;}
+@media(max-width:820px){.armorStatusGrid{grid-template-columns:1fr;}}
