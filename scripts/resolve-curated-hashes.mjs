@@ -119,17 +119,20 @@ for(let i=0;i<targets.length;i++){
     }else{
       report[result.status].push({...target,candidates:result.candidates});console.log(result.status);
     }
-  } catch (error) {
-  const message = error instanceof Error
-    ? error.message
-    : String(error);
+   } catch (error) {
+    const message = error instanceof Error
+      ? error.message
+      : String(error);
 
-  report.errors.push({
-    ...target,
-    error: message
-  });
+    report.errors.push({
+      ...target,
+      error: message
+    });
 
-  console.log(`error: ${message}`);
+    console.log(`error: ${message}`);
+  }
+
+  await sleep(55);
 }
   await sleep(55);
 }
