@@ -1,1 +1,38 @@
+name: Generate D2Synergy Database
 
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/**"
+      - ".github/workflows/generate-d2synergy-database.yml"
+
+jobs:
+  generate-database:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Download Compendium
+        run: node scripts/download-compendium.mjs
+
+      - name: Download Bungie Manifest
+        env:
+          BUNGIE_API_KEY: ${{ secrets.BUNGIE_API_KEY }}
+        run: node scripts/download-manifest.mjs
+
+      - name: Upload downloaded data
+        uses: actions/upload-artifact@v4
+        with:
+          name: d2synergy-source-data
+          path: temp/
+          if-no-files-found: error
