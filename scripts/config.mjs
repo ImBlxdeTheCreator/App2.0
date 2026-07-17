@@ -1,3 +1,8 @@
+/**
+ * D2Synergy Configuration
+ * Central location for all build settings.
+ */
+
 export const COMPENDIUM = {
   sheetId: "1WaxvbLx7UoSZaBqdFr1u32F2uWVLo-CJunJB4nlGUE4",
 
@@ -27,8 +32,8 @@ export const COMPENDIUM = {
 };
 
 export const MANIFEST = {
-  outputDirectory: "temp/manifest",
-  language: "en",
   metadataUrl: "https://www.bungie.net/Platform/Destiny2/Manifest/",
-  contentRoot: "https://www.bungie.net"
+  contentRoot: "https://www.bungie.net",
+  language: "en",
+  outputDirectory: "temp/manifest"
 };
