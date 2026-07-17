@@ -1,8 +1,19 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  open,
+  readdir,
+  stat,
+  unlink,
+  writeFile
+} from "node:fs/promises";
+
+import { execFile } from "node:child_process";
 import { basename, join } from "node:path";
+import { promisify } from "node:util";
 
 import { MANIFEST } from "./config.mjs";
 
+const execFileAsync = promisify(execFile);
 const API_KEY = process.env.BUNGIE_API_KEY;
 
 if (!API_KEY) {
@@ -28,12 +39,12 @@ async function fetchManifestMetadata() {
   return response.json();
 }
 
-async function downloadDatabase(url, destination) {
+async function downloadArchive(url, destination) {
   const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(
-      `Failed to download Manifest database (${response.status} ${response.statusText})`
+      `Failed to download Manifest archive (${response.status} ${response.statusText})`
     );
   }
 
@@ -42,6 +53,49 @@ async function downloadDatabase(url, destination) {
   await writeFile(destination, buffer);
 
   return buffer.length;
+}
+
+async function isSqliteDatabase(filePath) {
+  const fileHandle = await open(filePath, "r");
+
+  try {
+    const header = Buffer.alloc(16);
+
+    await fileHandle.read(header, 0, 16, 0);
+
+    return header.toString("utf8") === "SQLite format 3\u0000";
+  } finally {
+    await fileHandle.close();
+  }
+}
+
+async function findExtractedDatabase(directory) {
+  const filenames = await readdir(directory);
+
+  for (const filename of filenames) {
+    if (filename === "index.json" || filename.endsWith(".zip")) {
+      continue;
+    }
+
+    const fullPath = join(directory, filename);
+    const fileStats = await stat(fullPath);
+
+    if (!fileStats.isFile()) {
+      continue;
+    }
+
+    if (await isSqliteDatabase(fullPath)) {
+      return {
+        filename,
+        fullPath,
+        bytes: fileStats.size
+      };
+    }
+  }
+
+  throw new Error(
+    "The Manifest archive was extracted, but no SQLite database was found."
+  );
 }
 
 async function main() {
@@ -57,7 +111,6 @@ async function main() {
   console.log("Requesting latest Bungie Manifest...");
 
   const payload = await fetchManifestMetadata();
-
   const manifest = payload.Response;
 
   if (!manifest) {
@@ -73,40 +126,68 @@ async function main() {
     );
   }
 
-  const filename = basename(databasePath);
+  const sourceFilename = basename(databasePath);
+  const downloadUrl = `${MANIFEST.contentRoot}${databasePath}`;
 
-  const downloadUrl =
-    `${MANIFEST.contentRoot}${databasePath}`;
-
-  const outputFile =
-    join(MANIFEST.outputDirectory, filename);
+  const archiveFile = join(
+    MANIFEST.outputDirectory,
+    `${sourceFilename}.zip`
+  );
 
   console.log(`Manifest Version : ${manifest.version}`);
-  console.log(`Downloading      : ${filename}`);
+  console.log(`Downloading      : ${sourceFilename}`);
 
-  const bytes =
-    await downloadDatabase(downloadUrl, outputFile);
+  const archiveBytes = await downloadArchive(
+    downloadUrl,
+    archiveFile
+  );
+
+  console.log("Extracting SQLite Manifest database...");
+
+  await execFileAsync(
+    "unzip",
+    [
+      "-o",
+      archiveFile,
+      "-d",
+      MANIFEST.outputDirectory
+    ],
+    {
+      maxBuffer: 1024 * 1024 * 20
+    }
+  );
+
+  const database = await findExtractedDatabase(
+    MANIFEST.outputDirectory
+  );
+
+  await unlink(archiveFile);
 
   const metadata = {
     schemaVersion: 1,
     downloadedAt: new Date().toISOString(),
     manifestVersion: manifest.version,
     language: MANIFEST.language,
-    filename,
-    bytes
+    sourceFilename,
+    databaseFilename: database.filename,
+    archiveBytes,
+    databaseBytes: database.bytes
   };
 
   await writeFile(
     join(MANIFEST.outputDirectory, "index.json"),
-    JSON.stringify(metadata, null, 2)
+    `${JSON.stringify(metadata, null, 2)}\n`,
+    "utf8"
   );
 
   console.log("");
   console.log("======================================");
   console.log(" DOWNLOAD COMPLETE");
   console.log("======================================");
-  console.log(`Saved : ${outputFile}`);
-  console.log(`Size  : ${bytes.toLocaleString()} bytes`);
+  console.log(`Database : ${database.fullPath}`);
+  console.log(
+    `Size     : ${database.bytes.toLocaleString()} bytes`
+  );
 }
 
 main().catch((error) => {
