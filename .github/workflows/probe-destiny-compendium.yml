@@ -1,1 +1,54 @@
 
+name: Probe Destiny Data Compendium
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test public CSV access
+        shell: bash
+        run: |
+          SHEET_ID="1WaxvbLx7UoSZaBqdFr1u32F2uWVLo-CJunJB4nlGUE4"
+          GID="441434520"
+
+          URL="https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}"
+
+          echo "Testing:"
+          echo "$URL"
+          echo
+
+          curl -L \
+            -A "Mozilla/5.0" \
+            -o sheet.csv \
+            -w "HTTP Status: %{http_code}\n" \
+            "$URL"
+
+          echo
+          echo "========================="
+          echo "File Information"
+          echo "========================="
+
+          ls -lh sheet.csv
+          echo
+
+          echo "Line Count:"
+          wc -l sheet.csv
+          echo
+
+          echo "First 10 Lines:"
+          echo "-------------------------"
+          head -10 sheet.csv
+          echo "-------------------------"
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: compendium-probe
+          path: sheet.csv
