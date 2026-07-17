@@ -25,3 +25,10 @@ export const COMPENDIUM = {
     { gid: "1925335732", filename: "armor-mods.csv" }
   ]
 };
+
+export const MANIFEST = {
+  outputDirectory: "temp/manifest",
+  language: "en",
+  metadataUrl: "https://www.bungie.net/Platform/Destiny2/Manifest/",
+  contentRoot: "https://www.bungie.net"
+};
